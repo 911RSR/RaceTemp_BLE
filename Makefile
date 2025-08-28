@@ -129,7 +129,7 @@ $(FW_repo)/Utilities/sequencer/stm32_seq.c
 
 # ASM sources
 ASM_SOURCES =  \
-startup_stm32wb55xx_cm4.s
+Core/Startup/startup_stm32wb55cgux.s
 
 # ASMM sources
 ASMM_SOURCES = 
@@ -137,6 +137,8 @@ ASMM_SOURCES =
 # ASMMC sources
 ASMMC_SOURCE = 
 
+#$(C_SOURCES): RaceTemp_BLE.ioc
+#	java -jar 'C:\Program Files\STMicroelectronics\STM32Cube\STM32CubeMX\STM32CubeMX.exe' RaceTemp_BLE.ioc -q MX_script
 
 #######################################
 # binaries
@@ -232,7 +234,8 @@ CFLAGS += -MMD -MP -MF"$(@:%.o=%.d)"
 # LDFLAGS
 #######################################
 # link script
-LDSCRIPT = stm32wb55xx_flash_cm4.ld
+#LDSCRIPT = stm32wb55xx_flash_cm4.ld
+LDSCRIPT = STM32WB55CGUX_FLASH.ld
 
 # libraries
 LIBS = -lc -lm -lnosys 
@@ -259,11 +262,10 @@ vpath %.S $(sort $(dir $(ASMMC_SOURCES)))
 
 $(BUILD_DIR)/%.o: %.c Makefile | $(BUILD_DIR) 
 	$(CC) -c $(CFLAGS) -Wa,-a,-ad,-alms=$(BUILD_DIR)/$(notdir $(<:.c=.lst)) $< -o $@
-
 $(BUILD_DIR)/%.o: %.s Makefile | $(BUILD_DIR)
-	$(AS) -c $(CFLAGS) $< -o $@
+	$(AS) -c $(ASFLAGS) $< -o $@
 $(BUILD_DIR)/%.o: %.S Makefile | $(BUILD_DIR)
-	$(AS) -c $(CFLAGS) $< -o $@
+	$(AS) -c $(ASFLAGS) $< -o $@
 
 $(BUILD_DIR)/$(TARGET).elf: $(OBJECTS) Makefile
 	$(CC) $(OBJECTS) $(LDFLAGS) -o $@
