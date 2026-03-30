@@ -12,7 +12,9 @@ RaceTemp_BLE does not support O2/Lambda sensors (like the RaceTemp does).
 2. Open the .ioc file in STM32CubeMX and click "generate code"
 3. Import the project into STM32CubeIDE and click compile
 4. Load it onto a STM32 target.  I use a STM32 MiniE debugger.  STLINK V2 or other versions can also be used.
-If you have a bootloader on the STM32, then it might also support loading via BLE, USB or other serial ports.    
+If you have a bootloader on the STM32, then it might also support loading via BLE, USB or other serial ports.
+
+"make" can also be used (instead of poins 2-3-4)
 
 # Use with RaceChrono Pro
 The values read by the STM32 (ADCs and the MAX-TCC) get reported via BLE using CAN IDs as configured in the file RaceTemp_BLE/STM32_WPAN/App/custom_app.c. 
