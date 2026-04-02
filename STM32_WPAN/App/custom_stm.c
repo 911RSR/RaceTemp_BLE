@@ -319,7 +319,7 @@ void SVCCTL_InitCustomSvc(void)
   }
   else
   {
-    APP_DBG_MSG("  Success: aci_gatt_add_service command: RaceChrono \n\r");
+    APP_DBG_MSG("  Success: aci_gatt_add_service command: RaceChrono , handle = 0x%04x \n\r", CustomContext.CustomRacechronoHdle);
   }
 
   /**
@@ -341,7 +341,7 @@ void SVCCTL_InitCustomSvc(void)
   }
   else
   {
-    APP_DBG_MSG("  Success: aci_gatt_add_char command   : CAN_MAIN \n\r");
+    APP_DBG_MSG("  Success: aci_gatt_add_char command   : CAN_MAIN , handle = 0x%04x \n\r", CustomContext.CustomCan_MainHdle);
   }
 
   /* USER CODE BEGIN SVCCTL_Init_Service1_Char1 */
@@ -367,7 +367,7 @@ void SVCCTL_InitCustomSvc(void)
   }
   else
   {
-    APP_DBG_MSG("  Success: aci_gatt_add_char command   : CAN_FILTER \n\r");
+    APP_DBG_MSG("  Success: aci_gatt_add_char command   : CAN_FILTER , handle = 0x%04x \n\r", CustomContext.CustomCan_FilterHdle);
   }
 
   /* USER CODE BEGIN SVCCTL_Init_Service1_Char2 */

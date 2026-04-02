@@ -21,6 +21,7 @@
 #include "adc.h"
 #include "crc.h"
 #include "dma.h"
+#include "i2c.h"
 #include "ipcc.h"
 #include "rf.h"
 #include "rtc.h"
@@ -32,8 +33,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 //#include "usbd_cdc_if.h"
-#include "custom_app.h"
-#include "stm32_seq.h"
+//#include "custom_app.h"
+//#include "stm32_seq.h"
 
 /* USER CODE END Includes */
 
@@ -67,50 +68,6 @@ void PeriphCommonClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-volatile uint16_t ADC1_buffer[3];
-volatile uint8_t SPI1_buffer[4];
-
-void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
-{
-	if ( hadc == &hadc1 )
-	{
-		MAP_raw = ADC1_buffer[0];
-		NTC_raw = ADC1_buffer[1];
-		ICT_raw = ADC1_buffer[2];
-		HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);  // just to show that the ADC conversion is OK
-		UTIL_SEQ_SetTask( 1<<CFG_TASK_RC_BLE_ID, CFG_SCH_PRIO_0 );  // schedule the BLE update
-	}
-}
-
-
-// How to trigger an update of a BLE characteristic (without polling for New_ADC_Data)?
-// Maybe like this:
-// Custom_Can_main_Update_Char();
-// ...but, it should not be done right away here in the interrupt handler.
-// Also: It is private in custom_app.c, so it is not accessible.
-
-// ...maybe it should be handled via the sequencer as a "task", something like:
-// > Custom_APP_Notification( Custom_App_ConnHandle_Not_evt_t *pNotification);
-// but "*pNotification" only handles CONNECT and DISCONNECT...
-
-// can we use this? :
-// > UTIL_SEQ_SetTask( UTIL_SEQ_bm_t TaskId_bm , uint32_t Task_Prio );
-// stm32_seq.h  @brief This function requests a task to be executed.
-// The tasks are listed in app_conf.h
-//UTIL_SEQ_SetTask( TaskId_bm , CFG_SCH_PRIO_0 );
-//Custom_Can_main_Send_Notification();
-
-
-
-
-// For debug messages via USB: see DbgOutputTraces in app_debug.c
-/*int __io_putchar(int ch)
-{
-	HAL_UART_Transmit( hw_uart1, (uint8_t *) &ch, 1, 0xFFFF );
-	//CDC_Transmit_FS( (uint8_t*) &ch, 1 );
-	return ch;
-}*/
 
 /* USER CODE END 0 */
 
@@ -158,41 +115,11 @@ int main(void)
   MX_CRC_Init();
   MX_SPI1_Init();
   MX_TIM1_Init();
+  MX_TIM2_Init();
+  MX_I2C1_Init();
+  MX_TIM16_Init();
   MX_RF_Init();
   /* USER CODE BEGIN 2 */
-  //HAL_ADC_StartCalibration( &hadc1, ADC_SINGLE_ENDED );
-  //HAL_ADC_Start( &hadc1 );
-  HAL_ADC_Start_DMA( &hadc1, (uint32_t*)ADC1_buffer, 3 );
-  //HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
-  HAL_TIM_Base_Start( &htim1 );
-
-  /*LL_DMA_ConfigAddresses(DMA1, LL_DMA_CHANNEL_4, LL_SPI_DMA_GetRegAddr(SPI1),
-		  (uint32_t) SPI1_buffer, LL_DMA_DIRECTION_PERIPH_TO_MEMORY);
-  LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_4, 4 ); // 32 bits, ref MAX31855 datasheet
-  LL_DMA_SetPeriphRequest(DMA1, LL_DMA_CHANNEL_4, LL_DMAMUX_REQ_SPI1_RX);*/
-
-  /* Disable SMPS: SMPS in mode step-down can impact ADC conversion accuracy. */
-  /* It is recommended to disable SMPS (stop SMPS switching by setting it     */
-  /* in mode bypass) during ADC conversion.                                   */
-  /* Get SMPS effective operating mode */
-  if(LL_PWR_SMPS_GetEffectiveMode() == LL_PWR_SMPS_STEP_DOWN)
-  {
-    /* Set SMPS operating mode */
-    LL_PWR_SMPS_SetMode(LL_PWR_SMPS_BYPASS);
-  }
-  for (unsigned int i = 0; i < 3; i++)
-  {
-	  ADC1_buffer[i]=0;
-  }
-
-  HAL_GPIO_WritePin(MAP_VCC_GPIO_Port, MAP_VCC_Pin, 1 );
-  ADC_Enable( &hadc1 );
-  /*char usb_buff[128];
-  sprintf(usb_buff,"hello\r\n");
-  CDC_Transmit_FS( (uint8_t*) &usb_buff, strlen(usb_buff) );*/
-
-  //LL_SPI_Enable(SPI1);
-  //LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_1);
 
 
   /* USER CODE END 2 */

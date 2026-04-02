@@ -275,6 +275,29 @@ void USB_LP_IRQHandler(void)
 }
 
 /**
+  * @brief This function handles TIM2 global interrupt.
+  */
+void TIM2_IRQHandler(void)
+{
+  /* USER CODE BEGIN TIM2_IRQn 0 */
+	if (TIM2->SR & TIM_SR_CC1IF )
+    {
+        //RaceTemp_ignition_pulse_isr( TIM2->CCR1 );
+    	LL_TIM_ClearFlag_CC1( TIM2 );
+        //TIM2->SR &= (uint16_t)~TIM_IT_CC1;  // clear CC interrupt pending bit
+    }
+    else // unexpected interrupt
+    {
+    	//LL_TIM_ClearFlag_UPDATE( TIM2 );
+    }
+
+  /* USER CODE END TIM2_IRQn 0 */
+  /* USER CODE BEGIN TIM2_IRQn 1 */
+
+  /* USER CODE END TIM2_IRQn 1 */
+}
+
+/**
   * @brief This function handles USART1 global interrupt.
   */
 void USART1_IRQHandler(void)

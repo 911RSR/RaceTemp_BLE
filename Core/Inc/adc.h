@@ -35,14 +35,13 @@ extern "C" {
 extern ADC_HandleTypeDef hadc1;
 
 /* USER CODE BEGIN Private defines */
-
+extern volatile uint16_t MAP_raw, NTC_raw, ICT_raw, CJ125_UA_raw, CJ125_UR_raw, LS_UBAT_raw;
+extern volatile unsigned int New_ADC_Data;
 /* USER CODE END Private defines */
 
 void MX_ADC1_Init(void);
 
 /* USER CODE BEGIN Prototypes */
-extern volatile uint16_t MAP_raw, NTC_raw, ICT_raw;
-extern volatile unsigned int New_ADC_Data;
 
 /* USER CODE END Prototypes */
 
