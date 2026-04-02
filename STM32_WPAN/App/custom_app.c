@@ -29,9 +29,10 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "CAN_filter.h"
+#include "RaceTemp.h"
 #include "adc.h"
 #include "NTC.h"
+#include "spi.h"
 
 /* USER CODE END Includes */
 
@@ -54,6 +55,22 @@ typedef struct
 
 /* Private defines ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+union {
+	uint8_t Data[512];
+	uint32_t data32[128];
+	struct {
+       uint32_t ID;
+       float value;
+      };
+} BLE_msg;
+
+union {
+	uint8_t data[4];
+	struct {
+		int16_t tc;
+		int16_t ic;
+	};
+} MAX31855_msg;
 
 /* USER CODE END PD */
 
@@ -77,23 +94,6 @@ uint8_t UpdateCharData[512];
 uint8_t NotifyCharData[512];
 uint16_t Connection_Handle;
 /* USER CODE BEGIN PV */
-union {
-	uint8_t Data[512];
-	uint32_t data32[128];
-	struct {
-       uint32_t ID;
-       float value;
-      };
-} BLE_msg;
-
-union {
-	uint16_t data[2];
-	struct {
-		int16_t tc;
-		int16_t ic;
-	};
-} MAX31855_msg;
-
 
 /* USER CODE END PV */
 
@@ -103,7 +103,6 @@ static void Custom_Can_main_Update_Char(void);
 static void Custom_Can_main_Send_Notification(void);
 
 /* USER CODE BEGIN PFP */
-
 
 
 // Function for reading temperature
@@ -119,7 +118,12 @@ static void Custom_Can_main_Send_Notification(void);
 //
 float TC_temp()
 {
-	LL_GPIO_ResetOutputPin( TC_NSS_GPIO_Port, TC_NSS_Pin );  //Set chip select pin low, chip in use.
+	uint8_t txBuf[4] = {0, 0, 0, 0};   // dummy bytes
+	HAL_GPIO_WritePin( TC_NSS_GPIO_Port, TC_NSS_Pin, GPIO_PIN_RESET);  //Set chip select pin low, chip in use.
+	//HAL_SPI_Receive( &hspi1, MAX31855_msg.data, 4, 10 ); // 1 ms timeout -- consider DMA instead?
+	HAL_SPI_TransmitReceive(&hspi1, txBuf, MAX31855_msg.data, 4, HAL_MAX_DELAY);
+	HAL_GPIO_WritePin( TC_NSS_GPIO_Port, TC_NSS_Pin, GPIO_PIN_SET); // set NSS high to start the next MAX31885 ADC cycle
+	/*LL_GPIO_ResetOutputPin( TC_NSS_GPIO_Port, TC_NSS_Pin );  //Set chip select pin low, chip in use.
 	LL_SPI_ClearFlag_OVR( SPI1 ); // resets both RXNE and OVR
 	LL_SPI_Enable( SPI1 );
 	MAX31855_msg.data[0]=0xeca8;
@@ -133,47 +137,12 @@ float TC_temp()
 	HAL_Delay(1);
 	//uint32_t start_tick = SysTick->VAL;
     //while(SysTick->VAL - start_tick < 640000 ){};
-	MAX31855_msg.data[0] = LL_SPI_ReceiveData16( SPI1 );  /* Receive 16bit Data */
-	//MAX31855_msg.data[1] = LL_SPI_ReceiveData16( SPI1 );  /* Receive 16bit Data */
+	MAX31855_msg.data[0] = LL_SPI_ReceiveData16( SPI1 );  // Receive 16 bits
+	//MAX31855_msg.data[1] = LL_SPI_ReceiveData16( SPI1 );  // Receive 16 bits
 	LL_GPIO_SetOutputPin( TC_NSS_GPIO_Port, TC_NSS_Pin ); // set NSS high to start the next MAX31885 ADC cycle
-	LL_SPI_Disable( SPI1 );
+	LL_SPI_Disable( SPI1 );*/
     return 0.25f * MAX31855_msg.tc;
 }
-	/*LL_GPIO_ResetOutputPin( TC_NSS_GPIO_Port, TC_NSS_Pin );  //Set chip select pin low, chip in use.
-	HAL_Delay(1); // Delay before before starting the SPI clock.   Is this required for MAX31885 ?
-	LL_SPI_ClearFlag_OVR( SPI1 ); // resets both RXNE and OVR
-	LL_SPI_Enable(SPI1);  // start the SPI clock
-	//while ( !LL_SPI_IsActiveFlag_RXNE(SPI1) );  // wait for data
-	LL_SPI_Disable(SPI1); // stop the SPI clock
-	float temp = 0.25f * LL_SPI_ReceiveData16( SPI1 );
-	LL_GPIO_SetOutputPin( TC_NSS_GPIO_Port, TC_NSS_Pin ); // set NSS high to start the next MAX31885 ADC cycle
-	return temp;
-	*/
-	/*
-	MAX31855.tc_temp = LL_SPI_ReceiveData16( spi );
-	while ( !LL_SPI_IsActiveFlag_RXNE(spi) );  // wait for data
-	MAX31855.ic_temp = LL_SPI_ReceiveData16( spi );
-	LL_SPI_Disable(spi); // stop the SPI clock
-	// set NSS high to start the next MAX31885 ADC cycle
-	LL_GPIO_SetOutputPin( TC_CS_GPIO_Port, TC_CS_Pin ); //Set chip select pin high, chip not in use.
-	return 0.25f * MAX31855.tc_temp;*/
-
-
-/*float MAX6675_temp( SPI_TypeDef *spi )
-{
-	LL_GPIO_ResetOutputPin( MAX6675_CS_GPIO_Port, MAX6675_CS_Pin );  //Set chip select pin low, chip in use.
-	delay(0.0001); // >0.1 us delay is required (MAX6675 datasheet) before starting the SPI clock
-	//LL_SPI_ReceiveData16( spi ); // reset RXNE
-	LL_SPI_ClearFlag_OVR( spi ); // resets both RXNE and OVR
-	LL_SPI_Enable(spi);  // start the SPI clock
-	while ( !LL_SPI_IsActiveFlag_RXNE(spi) );  // wait for data  ToDo: Add timeout
-	//while ( LL_SPI_IsActiveFlag_BSY(spi) );  // wait while busy
-	LL_SPI_Disable(spi); // stop the SPI clock
-	// set NSS high to start the next ADC cycle in MAX6675
-	LL_GPIO_SetOutputPin( MAX6675_CS_GPIO_Port, MAX6675_CS_Pin ); //Set chip select pin high, chip not in use.
-	uint16_t RX_data = LL_SPI_ReceiveData16( spi );
-	return 0.25f * ( RX_data >> 3 );
-}*/
 
 
 
@@ -225,15 +194,19 @@ void RC_BLE( void )
 	}
 	if ( CAN_ShouldNotify( BLE_msg.ID = 0x00000013) )  // ID for EGT
 	{
-		BLE_msg.value = TC_temp();
+		uint8_t txBuf[4] = {0, 0, 0, 0};   // dummy bytes
+		HAL_GPIO_WritePin( TC_NSS_GPIO_Port, TC_NSS_Pin, GPIO_PIN_RESET);  //Set chip select pin low, chip in use.
+		HAL_SPI_TransmitReceive(&hspi1, txBuf, &BLE_msg.Data[4], 4, HAL_MAX_DELAY); // bytes 0..3 is ID
+		HAL_GPIO_WritePin( TC_NSS_GPIO_Port, TC_NSS_Pin, GPIO_PIN_SET); // set NSS high to start the next MAX31885 ADC cycle
 		Custom_Can_main_Send_Notification();
 	}
 	//LL_GPIO_ResetOutputPin( TC_NSS_GPIO_Port, TC_NSS_Pin );  //Set chip select pin low, chip in use.
 	//LL_SPI_ClearFlag_OVR( SPI1 ); // resets both RXNE and OVR
 	//LL_SPI_Enable(SPI1);  // start the SPI clock -- to receive next TC data
 
-	//UTIL_SEQ_SetTask( 1<<CFG_TASK_RC_BLE_ID, CFG_SCH_PRIO_0 ); // moved to the ADC ISR in main.c
+	//UTIL_SEQ_SetTask( 1<<CFG_TASK_RC_BLE_ID, CFG_SCH_PRIO_0 ); // moved to the ADC ISR in main.c -- and then to HAL_ADC_ConvCpltCallback in this file
 }
+
 
 /* USER CODE END PFP */
 
@@ -333,13 +306,7 @@ void Custom_APP_Notification(Custom_App_ConnHandle_Not_evt_t *pNotification)
 void Custom_APP_Init(void)
 {
   /* USER CODE BEGIN CUSTOM_APP_Init */
-	MAX31855_msg.tc=0x4444;
-	MAX31855_msg.ic=0x4444;
-	//New_ADC_Data = 1;
-	//MAP_raw = 0x007F<<4;
-	//Custom_Can_main_Update_Char();
-	//Custom_App_Context.Can_main_Notification_Status=0;
-	//Custom_APP_Can_main_context_Init();
+	RaceTemp_init();
   /* USER CODE END CUSTOM_APP_Init */
   return;
 }
@@ -402,6 +369,7 @@ void Custom_Can_main_Send_Notification(void) /* Property Notification */
 
   return;
 }
+
 
 /* USER CODE BEGIN FD_LOCAL_FUNCTIONS*/
 
