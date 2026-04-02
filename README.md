@@ -1,11 +1,14 @@
 # This is a BLE version of RaceTemp.  
+Work in progress.  The code is currently too messy and does not work with the latest ST libraries/tools. 
+Earlier versions of RaceTemp_BLE wored reliably in Nino's KZ2 go kart. 
+When it works OK agin, then I will upload also the binaries.  
+It has very low current consumption -- much lower than the non-BLE version. 
 I use this with a STM32WB55 board like this one https://github.com/WeActStudio/WeActStudio.STM32WB55CoreBoard
-It works reliably in Nino's KZ2 gearkart.  It has very low current consumption -- much lower than the non-BLE version. 
 
 RaceTemp_BLE supports only what is connected to the STM32's ADC (e.g. NTC, MAP, etc.) and a MAX31855 thermocouple converter.  
 Some files for MAX31856 are also included, but not yet tested. 
 RaceTemp_BLE does not connect to a CAN network.
-RaceTemp_BLE does not support O2/Lambda sensors (like the RaceTemp does).
+RaceTemp_BLE does not yet support O2/Lambda sensors (like the RaceTemp does).
 
 # Compiling
 1. Clone the project STM32CubeIDE: git clone https://github.com/911RSR/RaceTemp_BLE.git
