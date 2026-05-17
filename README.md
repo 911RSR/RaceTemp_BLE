@@ -1,7 +1,7 @@
 # This is a BLE version of RaceTemp.  
 Work in progress.  The code is currently too messy and does not work with the latest ST libraries/tools.  
 Earlier versions of RaceTemp_BLE wored reliably in Nino's KZ2 go kart.  
-When it works OK agin, then I will upload also the binaries.  
+When it works OK again, then I will upload also the binaries.  
 It has very low current consumption -- much lower than the non-BLE version.  
 I use this with a STM32WB55 board like this one https://github.com/WeActStudio/WeActStudio.STM32WB55CoreBoard.  
   

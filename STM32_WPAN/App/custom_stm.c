@@ -24,7 +24,7 @@
 
 /* USER CODE BEGIN Includes */
 //#include "usbd_cdc_if.h"
-#include "CAN_filter.h"
+#include "RaceChrono.h"
 
 /* USER CODE END Includes */
 
@@ -67,7 +67,7 @@ extern uint16_t Connection_Handle;
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-uint16_t SizeCan_Main = 20;
+uint16_t SizeCan_Main = 24;
 uint16_t SizeCan_Filter = 7;
 
 /**
@@ -190,8 +190,7 @@ static SVCCTL_EvtAckStatus_t Custom_STM_Event_Handler(void *Event)
           {
             return_value = SVCCTL_EvtAckFlowEnable;
             /* USER CODE BEGIN CUSTOM_STM_Service_1_Char_2_ACI_GATT_ATTRIBUTE_MODIFIED_VSEVT_CODE */
-        	APP_DBG_MSG("-- CAN FILTER WRITE, DataTransfered.Length=%u", attribute_modified->Attr_Data_Length );
-        	CAN_FilterWrite( attribute_modified->Attr_Data, attribute_modified->Attr_Data_Length );
+            RaceChrono_CanFilterWrite( attribute_modified->Attr_Data, attribute_modified->Attr_Data_Length );
             /* USER CODE END CUSTOM_STM_Service_1_Char_2_ACI_GATT_ATTRIBUTE_MODIFIED_VSEVT_CODE */
           } /* if (attribute_modified->Attr_Handle == (CustomContext.CustomCan_FilterHdle + CHARACTERISTIC_VALUE_ATTRIBUTE_OFFSET))*/
           /* USER CODE BEGIN EVT_BLUE_GATT_ATTRIBUTE_MODIFIED_END */
