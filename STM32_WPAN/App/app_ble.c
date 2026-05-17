@@ -214,7 +214,7 @@ uint8_t index_con_int, mutex;
  */
 uint8_t a_AdvData[15] =
 {
-  2, AD_TYPE_TX_POWER_LEVEL, 0 /* 0dBm */, /* Transmission Power */
+  2, AD_TYPE_TX_POWER_LEVEL, 2 /* 2dBm */, /* Transmission Power */
   8, AD_TYPE_COMPLETE_LOCAL_NAME, 'N', 'i', 'n', 'o', 'D', 'A', 'Q',  /* Complete name */
   2, AD_TYPE_LE_ROLE, 0x00 /* Only Peripheral Role supported */,
 
@@ -434,7 +434,8 @@ SVCCTL_UserEvtFlowStatus_t SVCCTL_App_Notification(void *p_Pckt)
                     p_disconnection_complete_event->Reason);
 
         /* USER CODE BEGIN EVT_DISCONN_COMPLETE_2 */
-
+        Adv_Cancel();
+        Adv_Request(APP_BLE_IDLE);
         /* USER CODE END EVT_DISCONN_COMPLETE_2 */
       }
 
@@ -1072,6 +1073,7 @@ const uint8_t* BleGetBdAddress(void)
 }
 
 /* USER CODE BEGIN FD_LOCAL_FUNCTION */
+
 
 /* USER CODE END FD_LOCAL_FUNCTION */
 

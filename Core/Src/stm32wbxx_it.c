@@ -22,6 +22,7 @@
 #include "stm32wbxx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "RaceTemp.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -282,8 +283,9 @@ void TIM2_IRQHandler(void)
   /* USER CODE BEGIN TIM2_IRQn 0 */
 	if (TIM2->SR & TIM_SR_CC1IF )
     {
-        //RaceTemp_ignition_pulse_isr( TIM2->CCR1 );
+        RaceTemp_ignition_pulse_isr( LL_TIM_IC_GetCaptureCH1(TIM2) );
     	LL_TIM_ClearFlag_CC1( TIM2 );
+    	LL_TIM_ClearFlag_CC1OVR( TIM2 );
         //TIM2->SR &= (uint16_t)~TIM_IT_CC1;  // clear CC interrupt pending bit
     }
     else // unexpected interrupt
