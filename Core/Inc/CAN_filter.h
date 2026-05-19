@@ -2,7 +2,6 @@
  * CAN_filter.h
  *
  *  Created on: Apr 21, 2025
- *      Author: viggo
  */
 
 #ifndef INC_CAN_FILTER_H_
