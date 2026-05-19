@@ -7,7 +7,6 @@
 
 #include "RaceTemp.h"
 #include "RaceChrono.h"
-#include "pass.h"
 #include "main.h"
 #include <stdio.h>  //sprintf
 //#include "printf.h"

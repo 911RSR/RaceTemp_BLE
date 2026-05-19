@@ -13,6 +13,9 @@
 *.launch
 *.ld
 
+# local/private Wi-Fi or access-point credentials, if used during experiments
+/Core/Inc/pass.h
+
 
 # For PCBs designed using KiCad: https://www.kicad.org/
 # Format documentation: https://kicad.org/help/file-formats/

@@ -137,8 +137,6 @@ ASMM_SOURCES =
 # ASMMC sources
 ASMMC_SOURCE = 
 
-#$(C_SOURCES): RaceTemp_BLE.ioc
-#	java -jar 'C:\Program Files\STMicroelectronics\STM32Cube\STM32CubeMX\STM32CubeMX.exe' RaceTemp_BLE.ioc -q MX_script
 
 #######################################
 # binaries

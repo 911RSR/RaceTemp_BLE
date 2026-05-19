@@ -4,7 +4,6 @@
  * With code copied from GitHub aollin / racechrono-ble-diy-device
  *
  *  Created on: Apr 21, 2025
- *      Author: viggo
  */
 #include "CAN_filter.h"
 #include <stddef.h>
