@@ -4,4 +4,5 @@ The PCB has four inputs:
 2) EGT -- exhaust gas temperature
 3) NTC1 -- water temperature 
 4) NTC2 -- cylinder head temperature
-![front side](./sentsor_interface_front.png) ![back side](./sensor_interface_back.png)
+   
+![front side](./sensor_interface_front.png) ![back side](./sensor_interface_back.png)
