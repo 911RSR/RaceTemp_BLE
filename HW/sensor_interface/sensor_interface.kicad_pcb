@@ -443,7 +443,7 @@
 				)
 			)
 		)
-		(property "Description" "Generic connector, single row, 01x09, script generated"
+		(property "Description" "Generic connector, single row, 01x09"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -682,7 +682,7 @@
 			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
-			(net "/SPI_TC_CS")
+			(net "/~{SPI_TC_CS}")
 			(pinfunction "Pin_7_7")
 			(pintype "passive")
 			(uuid "2ae51427-06f8-4217-9569-0e6e0893a7c9")
@@ -919,7 +919,7 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor"
+		(property "Description" "Generic unpolarized capacitor"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -935,6 +935,32 @@
 			(layer "F.SilkS")
 			(hide yes)
 			(uuid "c3b75856-d4b4-4c66-b6b4-9d0853dfa4ca")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Manufacturer" "Kemet"
+			(at 0 0 90)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "9d728084-ecd6-4e25-b0a1-5bc61b931b9c")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "MPN" "C0805C222KAGECAUTO"
+			(at 0 0 90)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "25dace5d-3128-46e2-bb73-8ee26d8d836b")
 			(effects
 				(font
 					(size 1 1)
@@ -1263,6 +1289,32 @@
 				)
 			)
 		)
+		(property "Manufacturer" ""
+			(at 0 0 90)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "31ed8c14-c149-4df7-a232-a8d9d901e923")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "MPN" ""
+			(at 0 0 90)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "166ff024-54b3-4d8b-9b1c-34d5a8efeb40")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
 		(property ki_fp_filters "SOT?23* SOT?553*")
 		(path "/a5654af9-bbd5-4800-8890-4d28a049419e")
 		(sheetname "/")
@@ -1496,7 +1548,7 @@
 				)
 			)
 		)
-		(property "Value" "1k"
+		(property "Value" "10k"
 			(at -2.561116 0 90)
 			(layer "F.Fab")
 			(uuid "493cc3c6-26bf-4647-a1e2-7ab80baa33b4")
@@ -1518,7 +1570,7 @@
 				)
 			)
 		)
-		(property "Description" "Resistor"
+		(property "Description" "Generic resistor, <= 1%, <= 100 ppm/K"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -1654,7 +1706,7 @@
 				)
 			)
 		)
-		(property "Value" "10u"
+		(property "Value" "100n"
 			(at -0.15 -1.525 90)
 			(layer "F.Fab")
 			(uuid "56c8efc7-eddd-402d-af34-cae54f59b162")
@@ -3032,7 +3084,7 @@
 				)
 			)
 		)
-		(property "Value" "2.2n"
+		(property "Value" "10n"
 			(at -2.936116 0.05 90)
 			(layer "F.Fab")
 			(uuid "1c5844f9-b31c-4f7e-8f19-52609f455248")
@@ -3528,7 +3580,7 @@
 				)
 			)
 		)
-		(property "Description" "Resistor"
+		(property "Description" "Generic Resistor, >= 200 V"
 			(at 0 0 45)
 			(layer "F.Fab")
 			(hide yes)
@@ -3544,6 +3596,32 @@
 			(layer "F.SilkS")
 			(hide yes)
 			(uuid "8f27e145-595e-4fb1-a2f6-861f21611230")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Manufacturer" "Vishay"
+			(at 0 0 45)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "1585a594-3bfe-44bc-b4fa-580a43429f84")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "MPN" "CRCW08051M00FKEA"
+			(at 0 0 45)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "7a7be47a-86f5-43d2-a7fa-f92b42d55732")
 			(effects
 				(font
 					(size 1 1)
@@ -3704,6 +3782,32 @@
 			(layer "F.SilkS")
 			(hide yes)
 			(uuid "2d4e53a2-9a3c-4475-bdad-0b4e0affc40f")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Manufacturer" "EVVO"
+			(at 0 0 180)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "cdf916da-c00c-491d-82aa-594faf3d68de")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "MPN" "BAT54S"
+			(at 0 0 180)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "35d4be99-49ea-4e4e-9dee-851e3653bd10")
 			(effects
 				(font
 					(size 1 1)
@@ -4595,7 +4699,7 @@
 				)
 			)
 		)
-		(property "Value" "1k"
+		(property "Value" "10k"
 			(at -2.238884 -0.025 90)
 			(layer "F.Fab")
 			(uuid "88c95298-59d2-4f47-b6c8-a082b749b7ce")
@@ -4956,6 +5060,32 @@
 				)
 			)
 		)
+		(property "Manufacturer" "Analog Devices"
+			(at 0 0 0)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "bb496f05-85fa-4c81-9b0e-be660a110aad")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "MPN" "MAX31856MUD+T"
+			(at 0 0 0)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "52890487-7162-4ef8-b48a-32af4922c4bd")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
 		(property ki_fp_filters "TSSOP*14*4.4x5mm*P0.65mm*")
 		(path "/ab2acff1-9027-43c2-8dc9-db5892c11a42")
 		(sheetname "/")
@@ -5268,7 +5398,7 @@
 			(size 1.475 0.4)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(roundrect_rratio 0.25)
-			(net "/SPI_TC_CS")
+			(net "/~{SPI_TC_CS}")
 			(pinfunction "~{CS}_9")
 			(pintype "input")
 			(uuid "bbe6f892-4cc7-4070-af36-49f8b0612c72")
@@ -6570,7 +6700,7 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor"
+		(property "Description" "Unpolarized capacitor, C0G/NP0, 0805, preferably 500 V or 1 kV"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -6586,6 +6716,32 @@
 			(layer "F.SilkS")
 			(hide yes)
 			(uuid "262b41ca-e689-4be4-84c1-8b326dd25136")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Manufacturer" "  YAGEO"
+			(at 0 0 0)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "3d260738-a163-4468-80ee-24f31b124cdb")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "MPN" "CC0805JRNPOCBN100"
+			(at 0 0 0)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "4036c1da-660b-4d58-953d-640729155c49")
 			(effects
 				(font
 					(size 1 1)
@@ -6696,7 +6852,7 @@
 		(descr "Resistor SMD 0805 (2012 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)")
 		(tags "resistor")
 		(property "Reference" "R9"
-			(at 0.3625 1.425 90)
+			(at -0.0375 1.45 90)
 			(layer "F.SilkS")
 			(uuid "0c921500-2aa0-4936-8cff-f3015785bfc7")
 			(effects
@@ -7024,6 +7180,19 @@
 			(font
 				(size 1 0.9)
 				(thickness 0.1875)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+	)
+	(gr_text "+"
+		(at 92.2 92.8 0)
+		(layer "F.SilkS")
+		(uuid "d1a84094-0d09-439c-9959-0927dfc4b64f")
+		(effects
+			(font
+				(size 1.5 1.5)
+				(thickness 0.2)
 				(bold yes)
 			)
 			(justify left bottom)
@@ -8140,22 +8309,6 @@
 		(uuid "88c1d77c-d6d2-4c7e-930c-d2b8190bbb7f")
 	)
 	(segment
-		(start 109.4975 87.4825)
-		(end 111.075 89.06)
-		(width 0.3)
-		(layer "F.Cu")
-		(net "/SPI_TC_CS")
-		(uuid "31da594b-3175-448c-a8f0-a561a5d87b86")
-	)
-	(segment
-		(start 108.1875 87.4825)
-		(end 109.4975 87.4825)
-		(width 0.3)
-		(layer "F.Cu")
-		(net "/SPI_TC_CS")
-		(uuid "82f0be32-4a32-48b2-9764-743378f0d0af")
-	)
-	(segment
 		(start 112.525 93.05)
 		(end 111.075 91.6)
 		(width 0.5)
@@ -8338,6 +8491,22 @@
 		(layer "F.Cu")
 		(net "/NTC1_raw")
 		(uuid "4224af11-657e-4013-b508-97b7434d31ea")
+	)
+	(segment
+		(start 100.825 85.525)
+		(end 100.55 85.25)
+		(width 0.3)
+		(layer "F.Cu")
+		(net "Net-(U2-T-)")
+		(uuid "a1315d38-7ea5-46fb-89a8-218bcbc03ac2")
+	)
+	(segment
+		(start 102.5375 85.525)
+		(end 100.825 85.525)
+		(width 0.3)
+		(layer "F.Cu")
+		(net "Net-(U2-T-)")
+		(uuid "ba19ce58-c199-4a52-bc82-848e6ee1265d")
 	)
 	(segment
 		(start 100.275 86.6)
@@ -8634,6 +8803,22 @@
 		(layer "F.Cu")
 		(net "Net-(U2-AVDD)")
 		(uuid "ef783932-fd23-4dc2-9a2d-c2a2e773f471")
+	)
+	(segment
+		(start 109.4975 87.4825)
+		(end 111.075 89.06)
+		(width 0.3)
+		(layer "F.Cu")
+		(net "/~{SPI_TC_CS}")
+		(uuid "31da594b-3175-448c-a8f0-a561a5d87b86")
+	)
+	(segment
+		(start 108.1875 87.4825)
+		(end 109.4975 87.4825)
+		(width 0.3)
+		(layer "F.Cu")
+		(net "/~{SPI_TC_CS}")
+		(uuid "82f0be32-4a32-48b2-9764-743378f0d0af")
 	)
 	(zone
 		(net "GND")
