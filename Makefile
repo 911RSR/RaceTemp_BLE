@@ -49,15 +49,20 @@ Core/Src/ipcc.c \
 Core/Src/rf.c \
 Core/Src/rtc.c \
 Core/Src/spi.c \
+Core/Src/i2c.c \
 Core/Src/app_entry.c \
 Core/Src/app_debug.c \
-Core/Src/hw_timerserver.c \
 Core/Src/hw_uart.c \
+Core/Src/hw_timerserver.c \
 Core/Src/stm32_lpm_if.c \
 Core/Src/tim.c \
 Core/Src/usart.c \
+Core/Src/NTC.c \
+Core/Src/RaceChrono.c \
+Core/Src/RaceTemp.c \
 Core/Src/stm32wbxx_it.c \
 Core/Src/stm32wbxx_hal_msp.c \
+Core/Src/system_stm32wbxx.c \
 Core/Src/sysmem.c \
 Core/Src/syscalls.c \
 USB_Device/Target/usbd_conf.c \
@@ -97,7 +102,11 @@ $(FW_repo)/Drivers/STM32WBxx_HAL_Driver/Src/stm32wbxx_ll_dma.c \
 $(FW_repo)/Drivers/STM32WBxx_HAL_Driver/Src/stm32wbxx_hal_ipcc.c \
 $(FW_repo)/Drivers/STM32WBxx_HAL_Driver/Src/stm32wbxx_hal_rtc.c \
 $(FW_repo)/Drivers/STM32WBxx_HAL_Driver/Src/stm32wbxx_hal_rtc_ex.c \
+$(FW_repo)/Drivers/STM32WBxx_HAL_Driver/Src/stm32wbxx_hal_i2c.c \
+$(FW_repo)/Drivers/STM32WBxx_HAL_Driver/Src/stm32wbxx_hal_i2c_ex.c \
+$(FW_repo)/Drivers/STM32WBxx_HAL_Driver/Src/stm32wbxx_hal_spi.c \
 $(FW_repo)/Drivers/STM32WBxx_HAL_Driver/Src/stm32wbxx_ll_spi.c \
+$(FW_repo)/Drivers/STM32WBxx_HAL_Driver/Src/stm32wbxx_ll_tim.c \
 $(FW_repo)/Drivers/STM32WBxx_HAL_Driver/Src/stm32wbxx_hal_tim.c \
 $(FW_repo)/Drivers/STM32WBxx_HAL_Driver/Src/stm32wbxx_hal_tim_ex.c \
 $(FW_repo)/Drivers/STM32WBxx_HAL_Driver/Src/stm32wbxx_hal_uart.c \
@@ -127,6 +136,11 @@ $(FW_repo)/Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Src/usbd_cdc.c \
 $(FW_repo)/Utilities/lpm/tiny_lpm/stm32_lpm.c \
 $(FW_repo)/Utilities/sequencer/stm32_seq.c 
 
+# C++ sources
+CXX_SOURCES = \
+Core/Src/CAN_filter.cpp \
+Core/Src/PacketIdInfo.cpp
+
 # ASM sources
 ASM_SOURCES =  \
 Core/Startup/startup_stm32wb55cgux.s
@@ -146,11 +160,13 @@ PREFIX = arm-none-eabi-
 # either it can be added to the PATH environment variable.
 ifdef GCC_PATH
 CC = $(GCC_PATH)/$(PREFIX)gcc
+CXX = $(GCC_PATH)/$(PREFIX)g++
 AS = $(GCC_PATH)/$(PREFIX)gcc -x assembler-with-cpp
 CP = $(GCC_PATH)/$(PREFIX)objcopy
 SZ = $(GCC_PATH)/$(PREFIX)size
 else
 CC = $(PREFIX)gcc
+CXX = $(PREFIX)g++
 AS = $(PREFIX)gcc -x assembler-with-cpp
 CP = $(PREFIX)objcopy
 SZ = $(PREFIX)size
@@ -218,14 +234,17 @@ C_INCLUDES =  \
 ASFLAGS = $(MCU) $(AS_DEFS) $(AS_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-sections
 
 CFLAGS += $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-sections
+CXXFLAGS += $(CFLAGS) -fno-exceptions -fno-rtti
 
 ifeq ($(DEBUG), 1)
 CFLAGS += -g -gdwarf-2
+CXXFLAGS += -g -gdwarf-2
 endif
 
 
 # Generate dependency information
 CFLAGS += -MMD -MP -MF"$(@:%.o=%.d)"
+CXXFLAGS += -MMD -MP -MF"$(@:%.o=%.d)"
 
 
 #######################################
@@ -250,6 +269,8 @@ all: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET
 # list of objects
 OBJECTS = $(addprefix $(BUILD_DIR)/,$(notdir $(C_SOURCES:.c=.o)))
 vpath %.c $(sort $(dir $(C_SOURCES)))
+OBJECTS += $(addprefix $(BUILD_DIR)/,$(notdir $(CXX_SOURCES:.cpp=.o)))
+vpath %.cpp $(sort $(dir $(CXX_SOURCES)))
 # list of ASM program objects
 OBJECTS += $(addprefix $(BUILD_DIR)/,$(notdir $(ASM_SOURCES:.s=.o)))
 vpath %.s $(sort $(dir $(ASM_SOURCES)))
@@ -260,13 +281,15 @@ vpath %.S $(sort $(dir $(ASMMC_SOURCES)))
 
 $(BUILD_DIR)/%.o: %.c Makefile | $(BUILD_DIR) 
 	$(CC) -c $(CFLAGS) -Wa,-a,-ad,-alms=$(BUILD_DIR)/$(notdir $(<:.c=.lst)) $< -o $@
+$(BUILD_DIR)/%.o: %.cpp Makefile | $(BUILD_DIR)
+	$(CXX) -c $(CXXFLAGS) -Wa,-a,-ad,-alms=$(BUILD_DIR)/$(notdir $(<:.cpp=.lst)) $< -o $@
 $(BUILD_DIR)/%.o: %.s Makefile | $(BUILD_DIR)
 	$(AS) -c $(ASFLAGS) $< -o $@
 $(BUILD_DIR)/%.o: %.S Makefile | $(BUILD_DIR)
 	$(AS) -c $(ASFLAGS) $< -o $@
 
 $(BUILD_DIR)/$(TARGET).elf: $(OBJECTS) Makefile
-	$(CC) $(OBJECTS) $(LDFLAGS) -o $@
+	$(CXX) $(OBJECTS) $(LDFLAGS) -o $@
 	$(SZ) $@
 
 $(BUILD_DIR)/%.hex: $(BUILD_DIR)/%.elf | $(BUILD_DIR)

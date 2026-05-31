@@ -212,10 +212,10 @@ uint8_t index_con_int, mutex;
 /**
  * Advertising Data
  */
-uint8_t a_AdvData[15] =
+uint8_t a_AdvData[16] =
 {
   2, AD_TYPE_TX_POWER_LEVEL, 2 /* 2dBm */, /* Transmission Power */
-  8, AD_TYPE_COMPLETE_LOCAL_NAME, 'N', 'i', 'n', 'o', 'D', 'A', 'Q',  /* Complete name */
+  9, AD_TYPE_COMPLETE_LOCAL_NAME, 'R', 'a', 'c', 'e', 'T', 'e', 'm', 'p',  /* Complete name */
   2, AD_TYPE_LE_ROLE, 0x00 /* Only Peripheral Role supported */,
 
 };
