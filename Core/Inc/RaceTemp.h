@@ -63,6 +63,32 @@ typedef struct
 	uint16_t ign_diff[2];
 } RaceTemp_RawBuffer_t;
 
+typedef struct
+{
+	uint32_t update_count;
+	uint8_t cr0;
+	uint8_t cr1;
+	uint8_t temperature[3];
+	int32_t temperature_code;
+	float temperature_c;
+	uint8_t cold_junction[2];
+	int8_t cold_junction_offset;
+	int16_t cold_junction_code;
+	float cold_junction_c;
+	uint8_t fault_status;
+	uint8_t init_cr0_write_status;
+	uint8_t init_cr1_write_status;
+	uint8_t init_cj_offset_write_status;
+	uint8_t config_read_status;
+	uint8_t config_valid;
+	uint8_t sample_read_status;
+	uint8_t cold_junction_read_status;
+	uint8_t cold_junction_offset_read_status;
+	uint8_t rx_frame[1 + RACETEMP_TC_RAW_SIZE];
+} RaceTemp_Max31856Debug_t;
+
+extern volatile RaceTemp_Max31856Debug_t max31856_debug;
+
 void RaceTemp_init( void );  // call this from Custom_APP_Init()
 void RaceTemp_ADC_isr( void );  // call this from ADC_IRQHandler() in stm32????_it.c, ...LL, or use HAL callback:
 void RaceTemp_ignition_pulse_isr( uint32_t CCR ); // call this from TIM2_IRQHandler(void)  in stm32????_it.c

@@ -47,6 +47,7 @@ union {
 volatile float rpm=0;
 
 static volatile RaceTemp_RawBuffer_t raw_buffer;
+volatile RaceTemp_Max31856Debug_t max31856_debug;
 
 #define RACETEMP_COUNTER_MAGIC     0x52544331UL
 #define RACETEMP_COUNTER_COMMIT    0xA5C35A3CUL
@@ -103,6 +104,9 @@ void RaceTemp_ignition_pulse_isr( uint32_t cnt )
 #if RACETEMP_THERMOCOUPLE_IC == RACETEMP_THERMOCOUPLE_IC_MAX31856
 #define MAX31856_REG_CR0        0x00
 #define MAX31856_REG_CR1        0x01
+#define MAX31856_REG_CJTO       0x09
+#define MAX31856_REG_CJTH       0x0A
+#define MAX31856_REG_CJTL       0x0B
 #define MAX31856_REG_LTCBH      0x0C
 #define MAX31856_WRITE_BIT      0x80
 #define MAX31856_CR0_CMODE      0x80
@@ -117,7 +121,8 @@ static void RaceTemp_UpdateRawTimerFields(void);
 
 #if RACETEMP_THERMOCOUPLE_IC == RACETEMP_THERMOCOUPLE_IC_MAX31856
 static void RaceTemp_ThermocoupleInit(void);
-static void RaceTemp_Max31856WriteRegister(uint8_t reg, uint8_t value);
+static HAL_StatusTypeDef RaceTemp_Max31856WriteRegister(uint8_t reg, uint8_t value);
+static HAL_StatusTypeDef RaceTemp_Max31856ReadRegister(uint8_t reg, uint8_t *value);
 #endif
 
 void RaceTemp_ADC_isr()  // currently not used -- using HAL_ADC_ConvCpltCallback() instead
@@ -478,19 +483,48 @@ static void RaceTemp_ThermocoupleDeselect(void)
 }
 
 #if RACETEMP_THERMOCOUPLE_IC == RACETEMP_THERMOCOUPLE_IC_MAX31856
-static void RaceTemp_Max31856WriteRegister(uint8_t reg, uint8_t value)
+static HAL_StatusTypeDef RaceTemp_Max31856WriteRegister(uint8_t reg, uint8_t value)
 {
 	uint8_t txBuf[2] = {reg | MAX31856_WRITE_BIT, value};
+	HAL_StatusTypeDef status;
 
 	RaceTemp_ThermocoupleSelect();
-	HAL_SPI_Transmit(&hspi1, txBuf, sizeof(txBuf), HAL_MAX_DELAY);
+	status = HAL_SPI_Transmit(&hspi1, txBuf, sizeof(txBuf), HAL_MAX_DELAY);
 	RaceTemp_ThermocoupleDeselect();
+
+	return status;
+}
+
+static HAL_StatusTypeDef RaceTemp_Max31856ReadRegister(uint8_t reg, uint8_t *value)
+{
+	uint8_t txBuf[2] = {reg, 0};
+	uint8_t rxBuf[2] = {0, 0};
+	HAL_StatusTypeDef status;
+
+	RaceTemp_ThermocoupleSelect();
+	status = HAL_SPI_TransmitReceive(&hspi1, txBuf, rxBuf, sizeof(txBuf), HAL_MAX_DELAY);
+	RaceTemp_ThermocoupleDeselect();
+	*value = rxBuf[1];
+
+	return status;
 }
 
 static void RaceTemp_ThermocoupleInit(void)
 {
-	RaceTemp_Max31856WriteRegister(MAX31856_REG_CR1, RACETEMP_MAX31856_TC_TYPE);
-	RaceTemp_Max31856WriteRegister(MAX31856_REG_CR0, MAX31856_CR0_CMODE | MAX31856_CR0_FAULTCLR | MAX31856_CR0_50HZ);
+	HAL_StatusTypeDef cr0_read_status;
+	HAL_StatusTypeDef cr1_read_status;
+	uint8_t cr0;
+	uint8_t cr1;
+
+	max31856_debug.init_cr1_write_status = (uint8_t)RaceTemp_Max31856WriteRegister(MAX31856_REG_CR1, RACETEMP_MAX31856_TC_TYPE);
+	max31856_debug.init_cj_offset_write_status = (uint8_t)RaceTemp_Max31856WriteRegister(
+			MAX31856_REG_CJTO, (uint8_t)(int8_t)RACETEMP_MAX31856_CJ_OFFSET_STEPS);
+	max31856_debug.init_cr0_write_status = (uint8_t)RaceTemp_Max31856WriteRegister(MAX31856_REG_CR0, MAX31856_CR0_CMODE | MAX31856_CR0_FAULTCLR | MAX31856_CR0_50HZ);
+	cr0_read_status = RaceTemp_Max31856ReadRegister(MAX31856_REG_CR0, &cr0);
+	cr1_read_status = RaceTemp_Max31856ReadRegister(MAX31856_REG_CR1, &cr1);
+	max31856_debug.cr0 = cr0;
+	max31856_debug.cr1 = cr1;
+	max31856_debug.config_read_status = (uint8_t)((cr0_read_status != HAL_OK) ? cr0_read_status : cr1_read_status);
 }
 #endif
 
@@ -504,16 +538,61 @@ static void RaceTemp_ReadThermocouple(void)
 	RaceTemp_ThermocoupleDeselect();
 #elif RACETEMP_THERMOCOUPLE_IC == RACETEMP_THERMOCOUPLE_IC_MAX31856
 	uint8_t txBuf[1 + RACETEMP_TC_RAW_SIZE] = {MAX31856_REG_LTCBH, 0, 0, 0, 0};
-	uint8_t rxBuf[1 + RACETEMP_TC_RAW_SIZE];
+	uint8_t rxBuf[1 + RACETEMP_TC_RAW_SIZE] = {0, 0, 0, 0, 0};
+	HAL_StatusTypeDef status;
+	HAL_StatusTypeDef cj_high_status;
+	HAL_StatusTypeDef cj_low_status;
+	HAL_StatusTypeDef cj_offset_status;
+	HAL_StatusTypeDef cr0_read_status;
+	HAL_StatusTypeDef cr1_read_status;
+	uint8_t cj_high;
+	uint8_t cj_low;
+	uint8_t cj_offset;
+	uint8_t cr0;
+	uint8_t cr1;
 
 	RaceTemp_ThermocoupleSelect();
-	HAL_SPI_TransmitReceive(&hspi1, txBuf, rxBuf, sizeof(txBuf), HAL_MAX_DELAY);
+	status = HAL_SPI_TransmitReceive(&hspi1, txBuf, rxBuf, sizeof(txBuf), HAL_MAX_DELAY);
 	RaceTemp_ThermocoupleDeselect();
 
+	max31856_debug.sample_read_status = (uint8_t)status;
+	max31856_debug.update_count++;
+	for (unsigned int i = 0; i < sizeof(rxBuf); i++)
+	{
+		max31856_debug.rx_frame[i] = rxBuf[i];
+	}
 	for (unsigned int i = 0; i < RACETEMP_TC_RAW_SIZE; i++)
 	{
 		raw_buffer.tc_spi[i] = rxBuf[i + 1];
 	}
+	max31856_debug.temperature[0] = rxBuf[1];
+	max31856_debug.temperature[1] = rxBuf[2];
+	max31856_debug.temperature[2] = rxBuf[3];
+	max31856_debug.temperature_code = ((int32_t)rxBuf[1] << 16) |
+			((int32_t)rxBuf[2] << 8) | rxBuf[3];
+	if ((max31856_debug.temperature_code & 0x00800000L) != 0)
+	{
+		max31856_debug.temperature_code |= (int32_t)0xFF000000L;
+	}
+	max31856_debug.temperature_c = (float)max31856_debug.temperature_code / 4096.0f;
+	cj_high_status = RaceTemp_Max31856ReadRegister(MAX31856_REG_CJTH, &cj_high);
+	cj_low_status = RaceTemp_Max31856ReadRegister(MAX31856_REG_CJTL, &cj_low);
+	cj_offset_status = RaceTemp_Max31856ReadRegister(MAX31856_REG_CJTO, &cj_offset);
+	max31856_debug.cold_junction_read_status = (uint8_t)((cj_high_status != HAL_OK) ? cj_high_status : cj_low_status);
+	max31856_debug.cold_junction_offset_read_status = (uint8_t)cj_offset_status;
+	max31856_debug.cold_junction[0] = cj_high;
+	max31856_debug.cold_junction[1] = cj_low;
+	max31856_debug.cold_junction_offset = (int8_t)cj_offset;
+	max31856_debug.cold_junction_code = (int16_t)(((uint16_t)cj_high << 8) | cj_low);
+	max31856_debug.cold_junction_c = (float)max31856_debug.cold_junction_code / 256.0f;
+	max31856_debug.fault_status = rxBuf[4];
+	cr0_read_status = RaceTemp_Max31856ReadRegister(MAX31856_REG_CR0, &cr0);
+	cr1_read_status = RaceTemp_Max31856ReadRegister(MAX31856_REG_CR1, &cr1);
+	max31856_debug.cr0 = cr0;
+	max31856_debug.cr1 = cr1;
+	max31856_debug.config_read_status = (uint8_t)((cr0_read_status != HAL_OK) ? cr0_read_status : cr1_read_status);
+	max31856_debug.config_valid = (uint8_t)((cr0 == (MAX31856_CR0_CMODE | MAX31856_CR0_50HZ)) &&
+			(cr1 == RACETEMP_MAX31856_TC_TYPE));
 #else
 #error "Unsupported RACETEMP_THERMOCOUPLE_IC"
 #endif

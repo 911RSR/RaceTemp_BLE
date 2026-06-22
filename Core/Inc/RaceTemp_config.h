@@ -28,6 +28,14 @@
 #define RACETEMP_MAX31856_TC_TYPE RACETEMP_MAX31856_TC_TYPE_K
 #endif
 
+/* Signed 0.0625 deg C steps; calibrated for the currently fitted device. */
+#ifndef RACETEMP_MAX31856_CJ_OFFSET_STEPS
+#define RACETEMP_MAX31856_CJ_OFFSET_STEPS (-50)
+#endif
+#if (RACETEMP_MAX31856_CJ_OFFSET_STEPS < -128) || (RACETEMP_MAX31856_CJ_OFFSET_STEPS > 127)
+#error "RACETEMP_MAX31856_CJ_OFFSET_STEPS must fit in a signed 8-bit CJTO register"
+#endif
+
 #ifndef RACETEMP_RPM_TIMER_HZ
 #define RACETEMP_RPM_TIMER_HZ 16000000.0f
 #endif
