@@ -3810,7 +3810,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "10k"
+		(property "Value" "1k"
 			(at 118.11 67.3099 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4610,7 +4610,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "10k"
+		(property "Value" "1k"
 			(at 66.04 66.0399 0)
 			(show_name no)
 			(do_not_autoplace no)

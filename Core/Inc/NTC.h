@@ -35,13 +35,13 @@ const static struct NTC_t NTC_Volvo = { 2000.0, 20.0 + 273.15, 3150.0, 1000.0 };
 // can also be used (even if the display is not needed for our use).
 // 10 kOhm pull up gives better result with this sensor, but I use 1 kOhm for compatibility
 // Measured 47 kOhm @ 20 degC, and 3.5 kOhm @ 100 degC
-// const static struct NTC_t NTC_KOSO = { 47000.0, 25.0 + 273.15, 4000.0, 1000.0 }; // 1 kOhm -- same as the other
-const static struct NTC_t NTC_KOSO = { 47000.0, 25.0 + 273.15, 4000.0, 10000.0 };  // 10k for better accuracy
+const static struct NTC_t NTC_KOSO = { 47000.0, 25.0 + 273.15, 4000.0, 1000.0 }; // 1 kOhm -- same as the other
+//const static struct NTC_t NTC_KOSO = { 47000.0, 25.0 + 273.15, 4000.0, 10000.0 };  // 10k for better accuracy
 
 // NTC sensor with M5 threads, for AC/CNC: https://www.aliexpress.com/item/1005004883911719.html
 // Fits in the M5 socket on the cylinder head cover of TM R2 KZ engines (shifter go kart)
 // I use 1 or 10 kOhm pull up with this sensor, and a 10 uF ceramic capacitor
-const static struct NTC_t NTC_AC = { 4700.0, 25.0 + 273.15, 3650.0, 10000.0 };
+const static struct NTC_t NTC_AC = { 4700.0, 25.0 + 273.15, 3650.0, 1000.0 };
 
 // NTC sensor in Hyundai MAPT sensor
 // I use 1 kOhm pull up with this one
