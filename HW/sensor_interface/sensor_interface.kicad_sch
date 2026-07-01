@@ -3000,13 +3000,14 @@
 		)
 		(uuid "4ba50fed-7fa9-460d-8f15-cbfcf47dcfc1")
 	)
-	(text "47 kOhm x 2.2 nF = 0.10 ms"
+	(text "47 kOhm x 2.2 nF = 100 us  or is it 1000 + 1000 + 47) kOhm x 2.2 nF = 4500 us ?\n...far too much for the ~1 us duration of the input.  Therefore DNP C2. "
 		(exclude_from_sim no)
-		(at 113.538 47.498 0)
+		(at 99.314 48.768 0)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
+			(justify left)
 		)
 		(uuid "4e4cf4ce-0646-41a1-b370-ec7838ef016d")
 	)
@@ -5854,7 +5855,7 @@
 				)
 			)
 		)
-		(property "Value" "10p"
+		(property "Value" "1n"
 			(at 48.26 27.94 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7470,7 +7471,7 @@
 		(in_bom yes)
 		(on_board yes)
 		(in_pos_files yes)
-		(dnp no)
+		(dnp yes)
 		(fields_autoplaced yes)
 		(uuid "adc6b6bf-5542-4737-9ad6-0b5142259955")
 		(property "Reference" "C2"
