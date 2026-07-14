@@ -4,6 +4,7 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $appConfPath = Join-Path $repoRoot 'Core\Inc\app_conf.h'
 $customStmPath = Join-Path $repoRoot 'STM32_WPAN\App\custom_stm.c'
 $customAppPath = Join-Path $repoRoot 'STM32_WPAN\App\custom_app.c'
+$linkerScriptPath = Join-Path $repoRoot 'STM32WB55CGUX_FLASH.ld'
 
 function Remove-SecondExactBlock {
     param(
@@ -106,7 +107,32 @@ $customApp = [regex]::Replace(
 )
 $customApp = Remove-DuplicateFunction -Text $customApp -FunctionName 'Custom_Can_main_Update_Char'
 $customApp = Remove-DuplicateFunction -Text $customApp -FunctionName 'Custom_Can_main_Send_Notification'
-$customApp = $customApp.Replace('void Custom_Can_main_Send_Notification(void) /* Property Notification */', '__USED void Custom_Can_main_Send_Notification(void) /* Property Notification */')
+$customApp = [regex]::Replace(
+    $customApp,
+    '(?:__USED\s+)*void Custom_Can_main_Send_Notification\(void\) /\* Property Notification \*/',
+    '__USED void Custom_Can_main_Send_Notification(void) /* Property Notification */'
+)
 Set-Content -LiteralPath $customAppPath -Value $customApp -NoNewline
 
-Write-Host 'Removed duplicate RaceTemp CubeMX BLE stubs when present.'
+if (Test-Path -LiteralPath $linkerScriptPath) {
+    $linkerScript = Get-Content -LiteralPath $linkerScriptPath -Raw
+    $linkerScript = [regex]::Replace(
+        $linkerScript,
+        'FLASH\s+\(rx\)\s*:\s*ORIGIN\s*=\s*0x08000000,\s*LENGTH\s*=\s*\d+K',
+        'FLASH (rx)                 : ORIGIN = 0x08000000, LENGTH = 504K'
+    )
+    if ($linkerScript -notmatch 'Last two 4 KB flash pages are reserved') {
+        $linkerScript = [regex]::Replace(
+            $linkerScript,
+            "(MEMORY\r?\n\{\r?\n)",
+            "`$1/* Last two 4 KB flash pages are reserved for RaceTemp persistent counters. */`r`n",
+            1
+        )
+    }
+    if ($linkerScript -notmatch 'FLASH\s+\(rx\)\s*:\s*ORIGIN\s*=\s*0x08000000,\s*LENGTH\s*=\s*504K') {
+        throw 'Could not reserve RaceTemp counter flash pages in linker script.'
+    }
+    Set-Content -LiteralPath $linkerScriptPath -Value $linkerScript -NoNewline
+}
+
+Write-Host 'Fixed CubeMX BLE stubs, BLE settings, and RaceTemp flash reservation when present.'

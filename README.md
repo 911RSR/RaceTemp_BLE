@@ -119,6 +119,32 @@ The intended BLE security setup is:
 If pairing fails after a firmware or security setting change, delete/forget the
 old `RaceTemp` pairing on the phone and pair again.
 
+## Persistent Engine Counters
+
+PID `21` / CAN ID `0x15` is the stored engine operating time in hours. It is a
+lifetime counter, not time since boot. PID `22` / CAN ID `0x16` is the stored
+engine revolution counter.
+
+The counters are stored in the last two 4 KB flash pages:
+
+- `0x0807E000`
+- `0x0807F000`
+
+The linker script reserves those pages by limiting normal application flash to
+`504K`. This makes the firmware image fail to link before it can overlap the
+counter storage.
+
+Expected flashing behavior:
+
+- Flashing with "erase necessary pages only" should preserve the counters.
+- Flashing with mass erase / full chip erase resets the counters to zero.
+- Manually erasing pages `0x0807E000` or `0x0807F000` resets the counters.
+
+The firmware writes the counters to flash when RPM times out after the engine
+stops. If the RPM input is left floating during bench testing, false pulses can
+increase the counters, so keep the RPM input at a defined level when it is not
+connected to a signal source.
+
 ## Using With RaceChrono
 
 1. Power the RaceTemp device.
@@ -163,7 +189,53 @@ bytesToFloatLe(raw, 0, 4)
 | `0x14` | 20 | Engine speed | float32 little-endian | RPM | `bytesToFloatLe(raw, 0, 4)` |
 | `0x15` | 21 | Engine operating time | float32 little-endian | hours | `bytesToFloatLe(raw, 0, 4)` |
 | `0x16` | 22 | Engine revolutions | float32 little-endian | rev | `bytesToFloatLe(raw, 0, 4)` |
+| `0x17` | 23 | Ignition period | float32 little-endian | timer ticks | `bytesToFloatLe(raw, 0, 4)` |
+| `0x18` | 24 | Ignition captures | float32 little-endian | count | `bytesToFloatLe(raw, 0, 4)` |
+| `0x19` | 25 | Ignition rejects | float32 little-endian | count | `bytesToFloatLe(raw, 0, 4)` |
+| `0x1A` | 26 | EGT temperature | float32 little-endian | deg C | `bytesToFloatLe(raw, 0, 4)` |
+| `0x1B` | 27 | Engine speed peak hold | float32 little-endian | RPM | `bytesToFloatLe(raw, 0, 4)` |
+| `0x1C` | 28 | EGT peak hold | float32 little-endian | deg C | `bytesToFloatLe(raw, 0, 4)` |
+| `0x1D` | 29 | Engine speed filtered | float32 little-endian | RPM | `bytesToFloatLe(raw, 0, 4)` |
+| `0x1E` | 30 | Thermocouple status | float32 little-endian | bitmask | `bytesToFloatLe(raw, 0, 4)` |
+| `0x1F` | 31 | Thermocouple recoveries | float32 little-endian | count | `bytesToFloatLe(raw, 0, 4)` |
 | `0x20` | 32 | Raw measurement snapshot | packed raw bytes | debug | See source layout |
+| `0x21` | 33 | RPM fast packet | packed float32 little-endian values | RPM | See RPM fast packet below |
+
+The peak hold channels keep a new maximum value visible for 5 seconds. The RPM
+peak hold uses the filtered RPM channel so single noisy periods do not create
+false peaks. After 5 seconds without a higher sample, the held channels return
+to the current live value.
+
+The filtered RPM channel is calculated from a short recent ignition-period
+window with outlier trimming. It is intended for the driver display. The raw RPM
+channel remains useful for ignition pickup debugging.
+
+## RPM Fast Packet
+
+CAN ID `0x21` is sent at 25 Hz. It packs the driver-facing RPM values into one
+BLE notification:
+
+| Offset | Channel | Unit | RaceChrono equation |
+| ---: | --- | --- | --- |
+| 0 | RPM raw | RPM | `bytesToFloatLe(raw, 0, 4)` |
+| 4 | RPM filtered | RPM | `bytesToFloatLe(raw, 4, 4)` |
+| 8 | RPM peak hold | RPM | `bytesToFloatLe(raw, 8, 4)` |
+
+The individual RPM and ignition debug channels remain available at the slower
+sensor publishing rate for comparison and troubleshooting.
+
+Thermocouple status is a bitmask:
+
+- `1`: current EGT sample is valid
+- `2`: SPI/read error
+- `4`: thermocouple IC fault bit set
+- `8`: MAX31856 config readback mismatch/error
+- `16`: recovery was triggered on this sample
+- `32`: implausible thermocouple temperature
+
+When the thermocouple sample is invalid, the EGT channel sends `0 C`. This
+is intentionally obvious in the driver display and logs; the firmware does not
+hold the last good EGT value.
 
 ## Reading MAX31855 In RaceChrono
 
@@ -254,14 +326,16 @@ logic.
 ## Notes About CubeMX Regeneration
 
 Unfortunately the current version of CubeMX can make some mistakes (it can duplicate user-section
-content in the BLE files), so after regenerating the code, run the cleanup script before building:
+content in the BLE files), and some generated files contain project-specific
+settings. After regenerating the code, run the cleanup script before building:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\tools\fix-cubemx-ble-duplicates.ps1
 ```
 
-The script removes duplicate CubeMX generated BLE functions and restores the
-BLE security settings used by this project.
+The script removes duplicate CubeMX generated BLE functions, restores the BLE
+security settings used by this project, and reserves the last two flash pages
+for the persistent engine counters.
 
 To re-generate the code from CubeMX:
 

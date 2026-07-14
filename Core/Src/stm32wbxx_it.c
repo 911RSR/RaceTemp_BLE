@@ -281,17 +281,24 @@ void USB_LP_IRQHandler(void)
 void TIM2_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM2_IRQn 0 */
-	if (TIM2->SR & TIM_SR_CC1IF )
-    {
-        RaceTemp_ignition_pulse_isr( LL_TIM_IC_GetCaptureCH1(TIM2) );
-    	LL_TIM_ClearFlag_CC1( TIM2 );
-    	LL_TIM_ClearFlag_CC1OVR( TIM2 );
-        //TIM2->SR &= (uint16_t)~TIM_IT_CC1;  // clear CC interrupt pending bit
-    }
-    else // unexpected interrupt
-    {
-    	//LL_TIM_ClearFlag_UPDATE( TIM2 );
-    }
+	if (LL_TIM_IsActiveFlag_CC1(TIM2))
+	{
+		uint32_t capture = LL_TIM_IC_GetCaptureCH1(TIM2);
+
+		LL_TIM_ClearFlag_CC1(TIM2);
+		LL_TIM_ClearFlag_CC1OVR(TIM2);
+		RaceTemp_ignition_pulse_isr(capture);
+	}
+
+	if (LL_TIM_IsActiveFlag_CC1OVR(TIM2))
+	{
+		LL_TIM_ClearFlag_CC1OVR(TIM2);
+	}
+
+	if (LL_TIM_IsActiveFlag_UPDATE(TIM2))
+	{
+		LL_TIM_ClearFlag_UPDATE(TIM2);
+	}
 
   /* USER CODE END TIM2_IRQn 0 */
   /* USER CODE BEGIN TIM2_IRQn 1 */

@@ -30,6 +30,8 @@ static volatile uint32_t last_ignition_tick;
 static volatile uint8_t engine_running;
 static volatile uint64_t engine_operating_ticks;
 static volatile uint64_t engine_revolutions;
+static volatile uint32_t ignition_pulse_count;
+static volatile uint32_t ignition_reject_count;
 static uint8_t rpm_have_last_ignition;
 static uint32_t rpm_last_ignition;
 //volatile uint16_t MAP_raw, NTC_raw, ICT_raw;
@@ -48,6 +50,28 @@ volatile float rpm=0;
 
 static volatile RaceTemp_RawBuffer_t raw_buffer;
 volatile RaceTemp_Max31856Debug_t max31856_debug;
+static volatile float rpm_estimated;
+static uint32_t rpm_period_buffer[RACETEMP_RPM_ESTIMATOR_PERIODS];
+static uint8_t rpm_period_count;
+static uint8_t rpm_period_next;
+static float rpm_peak_5s;
+static float egt_peak_5s;
+static uint32_t rpm_peak_5s_tick;
+static uint32_t egt_peak_5s_tick;
+static uint8_t rpm_peak_5s_initialized;
+static uint8_t egt_peak_5s_initialized;
+static uint8_t thermocouple_status_flags;
+static uint8_t thermocouple_consecutive_bad_reads;
+static volatile uint32_t thermocouple_bad_read_count;
+static volatile uint32_t thermocouple_recovery_count;
+static volatile uint8_t ble_ticks_pending;
+
+#define RACETEMP_TC_STATUS_VALID       0x01U
+#define RACETEMP_TC_STATUS_SPI_ERROR   0x02U
+#define RACETEMP_TC_STATUS_FAULT       0x04U
+#define RACETEMP_TC_STATUS_CONFIG      0x08U
+#define RACETEMP_TC_STATUS_RECOVERING  0x10U
+#define RACETEMP_TC_STATUS_RANGE       0x20U
 
 #define RACETEMP_COUNTER_MAGIC     0x52544331UL
 #define RACETEMP_COUNTER_COMMIT    0xA5C35A3CUL
@@ -73,12 +97,20 @@ static uint8_t RaceTemp_CounterRecordIsErased(const RaceTemp_CounterRecord_t *re
 static uint32_t RaceTemp_CounterFlashPage(uint32_t address);
 static HAL_StatusTypeDef RaceTemp_CounterErasePage(uint32_t page_base);
 static HAL_StatusTypeDef RaceTemp_CounterWriteRecord(uint32_t address, const RaceTemp_CounterRecord_t *record);
+static void RaceTemp_UpdateRpmEstimator(uint32_t period_ticks);
+static void RaceTemp_ResetRpmEstimator(void);
+static float RaceTemp_GetRpmPeak(uint32_t now_tick);
+static void RaceTemp_SendRpmFastPacket(uint32_t now_tick);
+static void RaceTemp_SendSlowTelemetry(uint32_t now_tick);
+static void RaceTemp_UpdateStatusLed(void);
 
 // Interrupt service routine (ISR) for timer input capture
 void RaceTemp_ignition_pulse_isr( uint32_t cnt )
 {
 #ifdef RPM
 	uint32_t diff;
+
+	ignition_pulse_count++;
 
 	if (!rpm_have_last_ignition)
 	{
@@ -94,9 +126,14 @@ void RaceTemp_ignition_pulse_isr( uint32_t cnt )
 		last_ignition_tick=cnt;
 		ign_diff=diff;
 		rpm = (60.0f * RACETEMP_RPM_TIMER_HZ) / ((float)diff * RACETEMP_IGNITION_PULSES_PER_REV);
+		RaceTemp_UpdateRpmEstimator(diff);
 		engine_operating_ticks += diff;
 		engine_revolutions += RACETEMP_ENGINE_REVS_PER_IGNITION_PULSE;
 		engine_running = 1U;
+	}
+	else
+	{
+		ignition_reject_count++;
 	}
 #endif
 }
@@ -118,6 +155,12 @@ static void RaceTemp_ThermocoupleSelect(void);
 static void RaceTemp_ThermocoupleDeselect(void);
 static void RaceTemp_ReadThermocouple(void);
 static void RaceTemp_UpdateRawTimerFields(void);
+static float RaceTemp_GetThermocoupleTemperatureC(void);
+static float RaceTemp_UpdatePeakHold(float sample, float *held_peak, uint32_t *peak_tick, uint8_t *initialized, uint32_t now_tick);
+static uint8_t RaceTemp_ThermocoupleSampleIsValid(void);
+static void RaceTemp_ThermocoupleRecordSample(uint8_t status_flags, float temperature_c);
+static void RaceTemp_ThermocoupleRecover(uint8_t power_cycle);
+static uint8_t RaceTemp_ThermocoupleTemperatureIsPlausible(float temperature_c);
 
 #if RACETEMP_THERMOCOUPLE_IC == RACETEMP_THERMOCOUPLE_IC_MAX31856
 static void RaceTemp_ThermocoupleInit(void);
@@ -148,7 +191,10 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 		LS_UBAT_raw = raw_buffer.adc[RACETEMP_RAW_LS_UBAT_ADC];
 		CJ125_UA_raw = raw_buffer.adc[RACETEMP_RAW_CJ125_UA_ADC];
 		CJ125_UR_raw = raw_buffer.adc[RACETEMP_RAW_CJ125_UR_ADC];
-		HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);  // just to show that the ADC conversion is OK
+		if (ble_ticks_pending < RACETEMP_FAST_TICK_HZ)
+		{
+			ble_ticks_pending++;
+		}
 		UTIL_SEQ_SetTask( 1<<CFG_TASK_RC_BLE_ID, CFG_SCH_PRIO_0 );  // schedule the RC_BLE update
 	}
 }
@@ -229,10 +275,16 @@ void RaceTemp_init()
 	RaceTemp_ThermocoupleInit();
 #endif
 
-	LL_TIM_CC_EnableChannel(TIM2,LL_TIM_CHANNEL_CH1 ); // for RPM (ignition probe)
-	LL_TIM_EnableCounter( TIM2 ); // Start the timer for ignition probe
-	LL_TIM_EnableIT_CC1( TIM2 );
+	LL_TIM_DisableCounter(TIM2);
+	LL_TIM_DisableIT_CC1(TIM2);
+	LL_TIM_CC_DisableChannel(TIM2, LL_TIM_CHANNEL_CH1);
+	LL_TIM_SetCounter(TIM2, 0U);
 	LL_TIM_ClearFlag_CC1( TIM2 );
+	LL_TIM_ClearFlag_CC1OVR( TIM2 );
+	LL_TIM_ClearFlag_UPDATE( TIM2 );
+	LL_TIM_CC_EnableChannel(TIM2, LL_TIM_CHANNEL_CH1); // for RPM (ignition probe)
+	LL_TIM_EnableIT_CC1(TIM2);
+	LL_TIM_EnableCounter(TIM2); // Start the timer for ignition probe
 }
 
 static uint32_t RaceTemp_CounterCrc(const RaceTemp_CounterRecord_t *record)
@@ -472,6 +524,74 @@ uint64_t RaceTemp_GetEngineRevolutions(void)
 	return revolutions;
 }
 
+static void RaceTemp_UpdateRpmEstimator(uint32_t period_ticks)
+{
+	uint32_t selected_periods[RACETEMP_RPM_ESTIMATOR_PERIODS];
+	uint32_t total_ticks = 0U;
+	uint32_t min_ticks = 0xFFFFFFFFU;
+	uint32_t max_ticks = 0U;
+	unsigned int selected = 0U;
+	uint8_t index;
+
+	rpm_period_buffer[rpm_period_next] = period_ticks;
+	rpm_period_next = (uint8_t)((rpm_period_next + 1U) % RACETEMP_RPM_ESTIMATOR_PERIODS);
+	if (rpm_period_count < RACETEMP_RPM_ESTIMATOR_PERIODS)
+	{
+		rpm_period_count++;
+	}
+
+	index = rpm_period_next;
+	for (unsigned int i = 0; i < rpm_period_count; i++)
+	{
+		uint32_t candidate;
+
+		index = (index == 0U) ? (RACETEMP_RPM_ESTIMATOR_PERIODS - 1U) : (uint8_t)(index - 1U);
+		candidate = rpm_period_buffer[index];
+
+		if ((selected >= 2U) && ((total_ticks + candidate) > RACETEMP_RPM_ESTIMATOR_MAX_WINDOW_TICKS))
+		{
+			break;
+		}
+
+		selected_periods[selected] = candidate;
+		total_ticks += candidate;
+		selected++;
+	}
+
+	if (selected == 0U)
+	{
+		return;
+	}
+
+	for (unsigned int i = 0; i < selected; i++)
+	{
+		if (selected_periods[i] < min_ticks)
+		{
+			min_ticks = selected_periods[i];
+		}
+		if (selected_periods[i] > max_ticks)
+		{
+			max_ticks = selected_periods[i];
+		}
+	}
+
+	if (selected >= 5U)
+	{
+		total_ticks -= (min_ticks + max_ticks);
+		selected -= 2U;
+	}
+
+	rpm_estimated = (60.0f * RACETEMP_RPM_TIMER_HZ * (float)selected) /
+			((float)total_ticks * RACETEMP_IGNITION_PULSES_PER_REV);
+}
+
+static void RaceTemp_ResetRpmEstimator(void)
+{
+	rpm_period_count = 0U;
+	rpm_period_next = 0U;
+	rpm_estimated = 0.0f;
+}
+
 static void RaceTemp_ThermocoupleSelect(void)
 {
 	HAL_GPIO_WritePin(TC_NSS_GPIO_Port, TC_NSS_Pin, GPIO_PIN_RESET);
@@ -480,6 +600,74 @@ static void RaceTemp_ThermocoupleSelect(void)
 static void RaceTemp_ThermocoupleDeselect(void)
 {
 	HAL_GPIO_WritePin(TC_NSS_GPIO_Port, TC_NSS_Pin, GPIO_PIN_SET);
+}
+
+static uint8_t RaceTemp_ThermocoupleSampleIsValid(void)
+{
+	return ((thermocouple_status_flags & RACETEMP_TC_STATUS_VALID) != 0U) ? 1U : 0U;
+}
+
+static uint8_t RaceTemp_ThermocoupleTemperatureIsPlausible(float temperature_c)
+{
+	return (temperature_c >= RACETEMP_TC_MIN_VALID_TEMPERATURE_C) ? 1U : 0U;
+}
+
+static void RaceTemp_ThermocoupleRecordSample(uint8_t status_flags, float temperature_c)
+{
+	if ((status_flags & RACETEMP_TC_STATUS_VALID) != 0U)
+	{
+		thermocouple_consecutive_bad_reads = 0U;
+	}
+	else
+	{
+		uint8_t recoverable = ((status_flags & (RACETEMP_TC_STATUS_SPI_ERROR | RACETEMP_TC_STATUS_CONFIG)) != 0U) ? 1U : 0U;
+
+		thermocouple_bad_read_count++;
+
+		if (recoverable != 0U)
+		{
+			thermocouple_consecutive_bad_reads++;
+			if (thermocouple_consecutive_bad_reads >= RACETEMP_TC_POWER_RECOVERY_BAD_READS)
+			{
+				status_flags |= RACETEMP_TC_STATUS_RECOVERING;
+				thermocouple_status_flags = status_flags;
+				RaceTemp_ThermocoupleRecover(1U);
+				return;
+			}
+			if (thermocouple_consecutive_bad_reads >= RACETEMP_TC_RECOVERY_BAD_READS)
+			{
+				status_flags |= RACETEMP_TC_STATUS_RECOVERING;
+				thermocouple_status_flags = status_flags;
+				RaceTemp_ThermocoupleRecover(0U);
+				return;
+			}
+		}
+		else
+		{
+			thermocouple_consecutive_bad_reads = 0U;
+		}
+	}
+
+	thermocouple_status_flags = status_flags;
+}
+
+static void RaceTemp_ThermocoupleRecover(uint8_t power_cycle)
+{
+	thermocouple_recovery_count++;
+
+	RaceTemp_ThermocoupleDeselect();
+	if (power_cycle != 0U)
+	{
+		HAL_GPIO_WritePin(TC_VCC_GPIO_Port, TC_VCC_Pin, GPIO_PIN_RESET);
+		HAL_Delay(RACETEMP_TC_POWER_CYCLE_DELAY_MS);
+		HAL_GPIO_WritePin(TC_VCC_GPIO_Port, TC_VCC_Pin, GPIO_PIN_SET);
+		HAL_Delay(RACETEMP_TC_POWER_CYCLE_DELAY_MS);
+	}
+
+#if RACETEMP_THERMOCOUPLE_IC == RACETEMP_THERMOCOUPLE_IC_MAX31856
+	RaceTemp_ThermocoupleInit();
+#endif
+	thermocouple_consecutive_bad_reads = 0U;
 }
 
 #if RACETEMP_THERMOCOUPLE_IC == RACETEMP_THERMOCOUPLE_IC_MAX31856
@@ -532,10 +720,43 @@ static void RaceTemp_ReadThermocouple(void)
 {
 #if RACETEMP_THERMOCOUPLE_IC == RACETEMP_THERMOCOUPLE_IC_MAX31855
 	uint8_t txBuf[4] = {0, 0, 0, 0};
+	uint8_t rxBuf[4] = {0, 0, 0, 0};
+	HAL_StatusTypeDef status;
+	uint8_t status_flags = 0U;
+	int16_t temperature_code;
+	float temperature_c;
 
 	RaceTemp_ThermocoupleSelect();
-	HAL_SPI_TransmitReceive(&hspi1, txBuf, (uint8_t *)raw_buffer.tc_spi, sizeof(raw_buffer.tc_spi), HAL_MAX_DELAY);
+	status = HAL_SPI_TransmitReceive(&hspi1, txBuf, rxBuf, sizeof(rxBuf), HAL_MAX_DELAY);
 	RaceTemp_ThermocoupleDeselect();
+
+	if (status == HAL_OK)
+	{
+		for (unsigned int i = 0; i < RACETEMP_TC_RAW_SIZE; i++)
+		{
+			raw_buffer.tc_spi[i] = rxBuf[i];
+		}
+		if ((rxBuf[1] & 0x01U) != 0U)
+		{
+			status_flags |= RACETEMP_TC_STATUS_FAULT;
+		}
+	}
+	else
+	{
+		status_flags |= RACETEMP_TC_STATUS_SPI_ERROR;
+	}
+
+	if (status_flags == 0U)
+	{
+		status_flags = RACETEMP_TC_STATUS_VALID;
+	}
+	temperature_code = (int16_t)(((uint16_t)rxBuf[0] << 8) | rxBuf[1]);
+	temperature_c = (float)temperature_code / 16.0f;
+	if (RaceTemp_ThermocoupleTemperatureIsPlausible(temperature_c) == 0U)
+	{
+		status_flags |= RACETEMP_TC_STATUS_RANGE;
+	}
+	RaceTemp_ThermocoupleRecordSample(status_flags, temperature_c);
 #elif RACETEMP_THERMOCOUPLE_IC == RACETEMP_THERMOCOUPLE_IC_MAX31856
 	uint8_t txBuf[1 + RACETEMP_TC_RAW_SIZE] = {MAX31856_REG_LTCBH, 0, 0, 0, 0};
 	uint8_t rxBuf[1 + RACETEMP_TC_RAW_SIZE] = {0, 0, 0, 0, 0};
@@ -550,6 +771,7 @@ static void RaceTemp_ReadThermocouple(void)
 	uint8_t cj_offset;
 	uint8_t cr0;
 	uint8_t cr1;
+	uint8_t status_flags = 0U;
 
 	RaceTemp_ThermocoupleSelect();
 	status = HAL_SPI_TransmitReceive(&hspi1, txBuf, rxBuf, sizeof(txBuf), HAL_MAX_DELAY);
@@ -561,9 +783,16 @@ static void RaceTemp_ReadThermocouple(void)
 	{
 		max31856_debug.rx_frame[i] = rxBuf[i];
 	}
-	for (unsigned int i = 0; i < RACETEMP_TC_RAW_SIZE; i++)
+	if (status == HAL_OK)
 	{
-		raw_buffer.tc_spi[i] = rxBuf[i + 1];
+		for (unsigned int i = 0; i < RACETEMP_TC_RAW_SIZE; i++)
+		{
+			raw_buffer.tc_spi[i] = rxBuf[i + 1];
+		}
+	}
+	else
+	{
+		status_flags |= RACETEMP_TC_STATUS_SPI_ERROR;
 	}
 	max31856_debug.temperature[0] = rxBuf[1];
 	max31856_debug.temperature[1] = rxBuf[2];
@@ -593,6 +822,24 @@ static void RaceTemp_ReadThermocouple(void)
 	max31856_debug.config_read_status = (uint8_t)((cr0_read_status != HAL_OK) ? cr0_read_status : cr1_read_status);
 	max31856_debug.config_valid = (uint8_t)((cr0 == (MAX31856_CR0_CMODE | MAX31856_CR0_50HZ)) &&
 			(cr1 == RACETEMP_MAX31856_TC_TYPE));
+	if (rxBuf[4] != 0U)
+	{
+		status_flags |= RACETEMP_TC_STATUS_FAULT;
+	}
+	if ((cr0_read_status != HAL_OK) || (cr1_read_status != HAL_OK) ||
+			(max31856_debug.config_valid == 0U))
+	{
+		status_flags |= RACETEMP_TC_STATUS_CONFIG;
+	}
+	if (RaceTemp_ThermocoupleTemperatureIsPlausible(max31856_debug.temperature_c) == 0U)
+	{
+		status_flags |= RACETEMP_TC_STATUS_RANGE;
+	}
+	if (status_flags == 0U)
+	{
+		status_flags = RACETEMP_TC_STATUS_VALID;
+	}
+	RaceTemp_ThermocoupleRecordSample(status_flags, max31856_debug.temperature_c);
 #else
 #error "Unsupported RACETEMP_THERMOCOUPLE_IC"
 #endif
@@ -604,6 +851,50 @@ static void RaceTemp_UpdateRawTimerFields(void)
 
 	raw_buffer.ign_diff[0] = (uint16_t)(ignition_ticks & 0xFFFFU);
 	raw_buffer.ign_diff[1] = (uint16_t)(ignition_ticks >> 16);
+}
+
+static float RaceTemp_GetThermocoupleTemperatureC(void)
+{
+#if RACETEMP_THERMOCOUPLE_IC == RACETEMP_THERMOCOUPLE_IC_MAX31855
+	int16_t temperature_code = (int16_t)(((uint16_t)raw_buffer.tc_spi[0] << 8) | raw_buffer.tc_spi[1]);
+
+	if (RaceTemp_ThermocoupleSampleIsValid() == 0U)
+	{
+		return RACETEMP_TC_INVALID_TEMPERATURE_C;
+	}
+
+	return (float)temperature_code / 16.0f;
+#elif RACETEMP_THERMOCOUPLE_IC == RACETEMP_THERMOCOUPLE_IC_MAX31856
+	if (RaceTemp_ThermocoupleSampleIsValid() == 0U)
+	{
+		return RACETEMP_TC_INVALID_TEMPERATURE_C;
+	}
+
+	return max31856_debug.temperature_c;
+#else
+#error "Unsupported RACETEMP_THERMOCOUPLE_IC"
+#endif
+}
+
+static float RaceTemp_UpdatePeakHold(float sample, float *held_peak, uint32_t *peak_tick, uint8_t *initialized, uint32_t now_tick)
+{
+	if ((*initialized == 0U) || (sample >= *held_peak))
+	{
+		*held_peak = sample;
+		*peak_tick = now_tick;
+		*initialized = 1U;
+	}
+	else if ((now_tick - *peak_tick) > RACETEMP_PEAK_HOLD_TICKS)
+	{
+		*held_peak = sample;
+	}
+
+	return *held_peak;
+}
+
+static float RaceTemp_GetRpmPeak(uint32_t now_tick)
+{
+	return RaceTemp_UpdatePeakHold(rpm_estimated, &rpm_peak_5s, &rpm_peak_5s_tick, &rpm_peak_5s_initialized, now_tick);
 }
 
 static void RaceTemp_UpdateRpmTimeout(void)
@@ -620,16 +911,29 @@ static void RaceTemp_UpdateRpmTimeout(void)
 		ign_diff = 0;
 		engine_running = 0U;
 		rpm_have_last_ignition = 0U;
+		RaceTemp_ResetRpmEstimator();
 		RaceTemp_CountersStore();
 	}
 #endif
 }
 
-void RC_BLE( void )
+static void RaceTemp_SendRpmFastPacket(uint32_t now_tick)
 {
+	float rpm_payload[3];
+
+	rpm_payload[0] = rpm;
+	rpm_payload[1] = rpm_estimated;
+	rpm_payload[2] = RaceTemp_GetRpmPeak(now_tick);
+	RaceChrono_SendCanMessage(RACETEMP_CAN_ID_RPM_FAST, (uint8_t *)rpm_payload, sizeof(rpm_payload));
+}
+
+static void RaceTemp_SendSlowTelemetry(uint32_t now_tick)
+{
+	float egt_c;
+
 	RaceTemp_ReadThermocouple();
-	RaceTemp_UpdateRpmTimeout();
 	RaceTemp_UpdateRawTimerFields();
+	egt_c = RaceTemp_GetThermocoupleTemperatureC();
 
 	RaceChrono_SendFloat(RACETEMP_CAN_ID_MAP_KPA, 7.0f + 0.06580f * MAP_raw);
 	RaceChrono_SendFloat(RACETEMP_CAN_ID_NTC_MAP_C, NTC_temp(NTC_raw, NTC_MAPT));
@@ -649,8 +953,84 @@ void RC_BLE( void )
 	RaceChrono_SendFloat(RACETEMP_CAN_ID_RPM, rpm);
 	RaceChrono_SendFloat(RACETEMP_CAN_ID_ENGINE_HOURS, RaceTemp_GetEngineHours());
 	RaceChrono_SendFloat(RACETEMP_CAN_ID_ENGINE_REVS, (float)RaceTemp_GetEngineRevolutions());
+	RaceChrono_SendFloat(RACETEMP_CAN_ID_IGN_PERIOD, (float)ign_diff);
+	RaceChrono_SendFloat(RACETEMP_CAN_ID_IGN_PULSES, (float)ignition_pulse_count);
+	RaceChrono_SendFloat(RACETEMP_CAN_ID_IGN_REJECTS, (float)ignition_reject_count);
+	RaceChrono_SendFloat(RACETEMP_CAN_ID_EGT_C, egt_c);
+	RaceChrono_SendFloat(RACETEMP_CAN_ID_RPM_PEAK_5S, RaceTemp_GetRpmPeak(now_tick));
+	RaceChrono_SendFloat(RACETEMP_CAN_ID_EGT_PEAK_5S,
+			RaceTemp_UpdatePeakHold(egt_c, &egt_peak_5s, &egt_peak_5s_tick, &egt_peak_5s_initialized, now_tick));
+	RaceChrono_SendFloat(RACETEMP_CAN_ID_RPM_FILTERED, rpm_estimated);
+	RaceChrono_SendFloat(RACETEMP_CAN_ID_TC_STATUS, (float)thermocouple_status_flags);
+	RaceChrono_SendFloat(RACETEMP_CAN_ID_TC_RECOVERIES, (float)thermocouple_recovery_count);
 	RaceChrono_SendCanMessage(RACETEMP_CAN_ID_EGT_RAW, (uint8_t *)raw_buffer.tc_spi, sizeof(raw_buffer.tc_spi));
 	RaceChrono_SendCanMessage(RACETEMP_CAN_ID_RAW_SNAPSHOT, (uint8_t *)&raw_buffer, sizeof(raw_buffer));
+}
+
+static void RaceTemp_UpdateStatusLed(void)
+{
+	static uint16_t led_tick;
+	uint16_t period_ticks = RACETEMP_STATUS_LED_NORMAL_PERIOD_TICKS;
+	uint16_t on_ticks = RACETEMP_STATUS_LED_NORMAL_ON_TICKS;
+	uint8_t thermocouple_fault_active;
+
+	thermocouple_fault_active = ((thermocouple_status_flags != 0U) &&
+			((thermocouple_status_flags & RACETEMP_TC_STATUS_VALID) == 0U)) ? 1U : 0U;
+	if (thermocouple_fault_active != 0U)
+	{
+		period_ticks = RACETEMP_STATUS_LED_FAULT_PERIOD_TICKS;
+		on_ticks = RACETEMP_STATUS_LED_FAULT_ON_TICKS;
+	}
+
+	if (period_ticks == 0U)
+	{
+		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+		return;
+	}
+
+	if (led_tick >= period_ticks)
+	{
+		led_tick = 0U;
+	}
+
+	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, (led_tick < on_ticks) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+	led_tick++;
+}
+
+void RC_BLE( void )
+{
+	static uint8_t rpm_publish_divider;
+	static uint8_t slow_publish_divider;
+
+	while (ble_ticks_pending > 0U)
+	{
+		uint32_t now_tick;
+
+		__disable_irq();
+		if (ble_ticks_pending > 0U)
+		{
+			ble_ticks_pending--;
+		}
+		__enable_irq();
+
+		now_tick = TIM2->CNT;
+		RaceTemp_UpdateRpmTimeout();
+		RaceTemp_UpdateStatusLed();
+
+		rpm_publish_divider++;
+		if (rpm_publish_divider >= RACETEMP_RPM_FAST_PUBLISH_DIVIDER)
+		{
+			rpm_publish_divider = 0U;
+			RaceTemp_SendRpmFastPacket(now_tick);
+		}
+
+		slow_publish_divider++;
+		if (slow_publish_divider >= RACETEMP_SLOW_PUBLISH_DIVIDER)
+		{
+			slow_publish_divider = 0U;
+			RaceTemp_SendSlowTelemetry(now_tick);
+		}
+	}
 }
 
 
