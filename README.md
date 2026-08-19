@@ -15,7 +15,8 @@ engine-revolutions logic used by this project.
 
 ## Current Status
 
-This firmware is still a work in progress.
+This is still a work in progress, but has som "track record" as it's 
+the only logger we have used for track days and races in 2026.   
 
 Implemented:
 
@@ -31,13 +32,39 @@ Implemented:
 - Persistent storage of engine counters after the engine stops
 - Optional raw measurement snapshot message
 
+## Building
+You can download the binary (the .elf file in the Release folder) and load it 
+via ST-Link and STM32CubeProgrammer, or if you want to compile yourself:
+
+Open the project in STM32CubeMX and click "GENERATE CODE".
+This should generate some code files and copy some library files.
+See also my CubeMX-notes at the bottom of this page.
+Open the project in STM32CubeIDE and build the `Debug` or `Release` configuration.
+
+The intended BLE security setup is:
+
+- Bonding enabled
+- No passkey
+- No MITM requirement
+- No input/output capability
+- Secure connections mandatory
+- GATT caching enabled
+- Static random address `C0:52:54:42:4C:45`
+- Advertisement includes the complete local name `RaceTemp`
+- Advertisement includes the RaceChrono DIY service UUID `0x1ff8`
+
+If pairing fails after a firmware or security setting change, delete/forget the
+old `RaceTemp` pairing on the phone and pair again.
+
+
+
 ## Hardware Notes
 
 Target MCU:
 
 - STM32WB55CGU
 
-The project has been developed around the WeAct STM32WB55 core board.
+The project has been developed and tested on a WeAct STM32WB55 board.
 
 Thermocouple IC options:
 
@@ -79,49 +106,12 @@ or:
 ```c
 #define RACETEMP_THERMOCOUPLE_IC RACETEMP_THERMOCOUPLE_IC_MAX31856
 ```
-
-For MAX31856, also select the thermocouple type:
-
-```c
-#define RACETEMP_MAX31856_TC_TYPE RACETEMP_MAX31856_TC_TYPE_K
-```
-
-Available MAX31856 types are:
-
-- `RACETEMP_MAX31856_TC_TYPE_B`
-- `RACETEMP_MAX31856_TC_TYPE_E`
-- `RACETEMP_MAX31856_TC_TYPE_J`
-- `RACETEMP_MAX31856_TC_TYPE_K`
-- `RACETEMP_MAX31856_TC_TYPE_N`
-- `RACETEMP_MAX31856_TC_TYPE_R`
-- `RACETEMP_MAX31856_TC_TYPE_S`
-- `RACETEMP_MAX31856_TC_TYPE_T`
+For MAX31856, also select the thermocouple type. 
+K-Type is most common (for motorsport and exhaust temperature). 
 
 The firmware sends the thermocouple data as raw IC bytes on CAN ID `0x13`.
 RaceChrono then decodes those bytes with an equation. This keeps the firmware
 simple and makes it possible to inspect status and fault bits from the IC.
-
-## Building
-
-Open the project in STM32CubeMX and click "GENERATE CODE".
-This should generate some code files and copy some library files.
-See also my CubeMX-notes at the bottom of this page.
-Open the project in STM32CubeIDE and build the `Debug` or `Release` configuration.
-
-The intended BLE security setup is:
-
-- Bonding enabled
-- No passkey
-- No MITM requirement
-- No input/output capability
-- Secure connections mandatory
-- GATT caching enabled
-- Static random address `C0:52:54:42:4C:45`
-- Advertisement includes the complete local name `RaceTemp`
-- Advertisement includes the RaceChrono DIY service UUID `0x1ff8`
-
-If pairing fails after a firmware or security setting change, delete/forget the
-old `RaceTemp` pairing on the phone and pair again.
 
 ## Persistent Engine Counters
 
