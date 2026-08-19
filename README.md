@@ -114,7 +114,11 @@ The intended BLE security setup is:
 - No passkey
 - No MITM requirement
 - No input/output capability
-- Secure connections optional
+- Secure connections mandatory
+- GATT caching enabled
+- Static random address `C0:52:54:42:4C:45`
+- Advertisement includes the complete local name `RaceTemp`
+- Advertisement includes the RaceChrono DIY service UUID `0x1ff8`
 
 If pairing fails after a firmware or security setting change, delete/forget the
 old `RaceTemp` pairing on the phone and pair again.
@@ -333,9 +337,21 @@ settings. After regenerating the code, run the cleanup script before building:
 powershell -ExecutionPolicy Bypass -File .\tools\fix-cubemx-ble-duplicates.ps1
 ```
 
-The script removes duplicate CubeMX generated BLE functions, restores the BLE
-security settings used by this project, and reserves the last two flash pages
-for the persistent engine counters.
+The script removes duplicate CubeMX generated BLE functions, restores the
+RaceChrono BLE callbacks, restores the BLE security/address settings used by
+this project, and repairs the local linker script.
+
+Important local linker-script repairs:
+
+- Normal application flash is limited to `504K`.
+- `PERSIST` reserves the last two 4 KB flash pages for engine counters.
+- `MAPPING_TABLE` is placed at `0x20030000`.
+- `MB_MEM1` and `.MB_MEM2` are placed in the CPU2 shared RAMB area.
+- `.MB_MEM2` is 4-byte aligned so startup initialization does not fault.
+
+The script also removes the extra generated HSEM lock before `MX_APPE_Init()`.
+Leaving that duplicate lock in place can stall BLE startup or lead to an early
+HardFault.
 
 To re-generate the code from CubeMX:
 

@@ -57,6 +57,8 @@
 
 /* USER CODE BEGIN PV */
 volatile uint8_t spiRxBuffer[4];
+volatile RCC_OscInitTypeDef racetemp_debug_rcc_osc_init;
+volatile HAL_StatusTypeDef racetemp_debug_rcc_osc_status;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -68,6 +70,30 @@ void PeriphCommonClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+static void RaceTemp_EarlyLedInit(void)
+{
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+  __HAL_RCC_GPIOE_CLK_ENABLE();
+  GPIO_InitStruct.Pin = LED_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+}
+
+static void RaceTemp_MainLoopHeartbeat(void)
+{
+  static uint32_t last_toggle_tick;
+  uint32_t now_tick = HAL_GetTick();
+
+  if ((now_tick - last_toggle_tick) >= 500U)
+  {
+    last_toggle_tick = now_tick;
+    HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+  }
+}
 
 /* USER CODE END 0 */
 
@@ -120,6 +146,7 @@ int main(void)
   MX_TIM16_Init();
   MX_RF_Init();
   /* USER CODE BEGIN 2 */
+  RaceTemp_EarlyLedInit();
 
 
   /* USER CODE END 2 */
@@ -135,6 +162,7 @@ int main(void)
     MX_APPE_Process();
 
     /* USER CODE BEGIN 3 */
+    RaceTemp_MainLoopHeartbeat();
   }
   /* USER CODE END 3 */
 }

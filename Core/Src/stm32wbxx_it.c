@@ -27,6 +27,24 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN TD */
+typedef struct
+{
+  uint32_t r0;
+  uint32_t r1;
+  uint32_t r2;
+  uint32_t r3;
+  uint32_t r12;
+  uint32_t lr;
+  uint32_t pc;
+  uint32_t psr;
+  uint32_t cfsr;
+  uint32_t hfsr;
+  uint32_t dfsr;
+  uint32_t afsr;
+  uint32_t bfar;
+  uint32_t mmfar;
+  uint32_t exc_return;
+} RaceTemp_HardFaultDebug_t;
 
 /* USER CODE END TD */
 
@@ -42,16 +60,44 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
+volatile RaceTemp_HardFaultDebug_t racetemp_hardfault_debug;
+volatile uint32_t racetemp_hardfault_count;
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN PFP */
+void RaceTemp_HardFaultCapture(uint32_t *stacked_sp, uint32_t exc_return);
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+__attribute__((used, noinline)) void RaceTemp_HardFaultCapture(uint32_t *stacked_sp, uint32_t exc_return)
+{
+  racetemp_hardfault_count++;
+
+  racetemp_hardfault_debug.r0 = stacked_sp[0];
+  racetemp_hardfault_debug.r1 = stacked_sp[1];
+  racetemp_hardfault_debug.r2 = stacked_sp[2];
+  racetemp_hardfault_debug.r3 = stacked_sp[3];
+  racetemp_hardfault_debug.r12 = stacked_sp[4];
+  racetemp_hardfault_debug.lr = stacked_sp[5];
+  racetemp_hardfault_debug.pc = stacked_sp[6];
+  racetemp_hardfault_debug.psr = stacked_sp[7];
+  racetemp_hardfault_debug.cfsr = SCB->CFSR;
+  racetemp_hardfault_debug.hfsr = SCB->HFSR;
+  racetemp_hardfault_debug.dfsr = SCB->DFSR;
+  racetemp_hardfault_debug.afsr = SCB->AFSR;
+  racetemp_hardfault_debug.bfar = SCB->BFAR;
+  racetemp_hardfault_debug.mmfar = SCB->MMFAR;
+  racetemp_hardfault_debug.exc_return = exc_return;
+
+  while (1)
+  {
+    __NOP();
+  }
+}
 
 /* USER CODE END 0 */
 
@@ -91,7 +137,15 @@ void NMI_Handler(void)
 void HardFault_Handler(void)
 {
   /* USER CODE BEGIN HardFault_IRQn 0 */
-
+  __asm volatile
+  (
+    "tst lr, #4        \n"
+    "ite eq            \n"
+    "mrseq r0, msp     \n"
+    "mrsne r0, psp     \n"
+    "mov r1, lr        \n"
+    "b RaceTemp_HardFaultCapture \n"
+  );
   /* USER CODE END HardFault_IRQn 0 */
   while (1)
   {

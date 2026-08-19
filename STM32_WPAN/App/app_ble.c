@@ -181,6 +181,14 @@ static const uint8_t a_MBdAddr[BD_ADDR_SIZE_LOCAL] =
 
 static uint8_t a_BdAddrUdn[BD_ADDR_SIZE_LOCAL];
 
+#if (CFG_BLE_ADDRESS_TYPE != GAP_PUBLIC_ADDR)
+static uint32_t a_srd_bd_addr[2] =
+{
+  (uint32_t)(CFG_STATIC_RANDOM_ADDRESS & 0xFFFFFFFFULL),
+  (uint32_t)((CFG_STATIC_RANDOM_ADDRESS >> 32) | 0xC000ULL)
+};
+#endif /* CFG_BLE_ADDRESS_TYPE != GAP_PUBLIC_ADDR */
+
 /**
  *   Identity root key used to derive IRK and DHK(Legacy)
  */
@@ -212,11 +220,12 @@ uint8_t index_con_int, mutex;
 /**
  * Advertising Data
  */
-uint8_t a_AdvData[16] =
+uint8_t a_AdvData[20] =
 {
-  2, AD_TYPE_TX_POWER_LEVEL, 2 /* 2dBm */, /* Transmission Power */
+  2, AD_TYPE_FLAGS, FLAG_BIT_LE_GENERAL_DISCOVERABLE_MODE,
   9, AD_TYPE_COMPLETE_LOCAL_NAME, 'R', 'a', 'c', 'e', 'T', 'e', 'm', 'p',  /* Complete name */
-  2, AD_TYPE_LE_ROLE, 0x00 /* Only Peripheral Role supported */,
+  3, AD_TYPE_16_BIT_SERV_UUID_CMPLT_LIST, 0xf8, 0x1f, /* RaceChrono DIY service UUID */
+  2, AD_TYPE_TX_POWER_LEVEL, 2 /* 2dBm */, /* Transmission Power */
 
 };
 
