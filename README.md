@@ -33,16 +33,20 @@ Implemented:
 - Optional raw measurement snapshot message
 
 ## Building
-You can download the binary (the .elf file in the Release folder) and load it 
-via ST-Link and STM32CubeProgrammer, or if you want to compile yourself:
+You can download the binary (Release/RaceTemp_BLE.elf) and flash it to an STM32WB55. 
+Android field flashing has been tested with STlinkP (Android app), STLINK-V3MINIE, 
+and the WeAct STM32WB board. One can of course also flash it via ST-Link and 
+STM32CubeProgrammer on a PC.   
 
-Open the project in STM32CubeMX and click "GENERATE CODE".
+If you want to compile yourself on a PC with STM32CubeMX and STM32CubeIDE, then follow this 4-step guide: 
+1. Open the project in STM32CubeMX and click "GENERATE CODE".
 This should generate some code files and copy some library files.
+2. Run the script: .\tools\fix-cubemx-ble-duplicates.ps1
 See also my CubeMX-notes at the bottom of this page.
-Open the project in STM32CubeIDE and build the `Debug` or `Release` configuration.
+3. Open the project in STM32CubeIDE and build the `Debug` or `Release` configuration.
+4. Connect the STLink debug probe and flash the binary.  
 
 The intended BLE security setup is:
-
 - Bonding enabled
 - No passkey
 - No MITM requirement
